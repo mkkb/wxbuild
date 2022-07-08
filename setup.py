@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
 
-from visplt import __version__
+from wxbuild import __version__
 
 requires = [
-  'wxpython',
-  'vispy',
-  'numpy',
+    'wxpython',
+    'vispy',
+    'numpy',
+    'psutil',
 ]
 
 setup(
