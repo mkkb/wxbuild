@@ -36,9 +36,17 @@ class WxComponents:
     vispypanel = wxv.WxPanel
     richtext = wxr.WxPanel
     widgets = wxp.Widgets
-    schemes = wxp.Schemes
+    styles = wxp.Styles
     #
     # template_values: tuple = (),
+
+
+@dataclass
+class Colors:
+    cycler: tuple = (
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+    )
 
 
 class MainFrame(wx.Frame):
@@ -113,14 +121,6 @@ class MainFrame(wx.Frame):
         wx.Exit()
 
     #
-    # User interaction functions
-    @staticmethod
-    def get_widget_name_by_event(event) -> str | None:
-        if hasattr(event, 'EventObject'):
-            if hasattr(event.EventObject, 'display_name'):
-                return getattr(event.EventObject, 'display_name')
-
-    #
     # Saving UI state to temporary file
     def save_state(self):  # TODO
         pass
@@ -129,6 +129,15 @@ class MainFrame(wx.Frame):
         pass
 
     def reset_state(self):  # TODO
+        pass
+
+    def add_state_value(self, name, value):  # TODO
+        pass
+
+    def set_state_value(self, name, value):  # TODO
+        pass
+
+    def get_state_value(self, name):  # TODO
         pass
 
     #
@@ -214,35 +223,37 @@ class MainFrame(wx.Frame):
     #
     # Populate entire UI frame from a tuple, nested panels will lead to recursive calls
     def populate_frame(self, layout_tuple: tuple):
-        print('Populating layout')
+        top_sizer = wx.BoxSizer(wx.VERTICAL)
         for i, panel_data in enumerate(layout_tuple):
-            print(' - ', i, panel_data)
+            panel = None
+            if isinstance(panel_data.parent, str):
+                parent = self
+            else:
+                parent = panel_data.parent
+
             if isinstance(panel_data, wxp.WxPanel):
-                print("  ->  is a wxStatePanel", panel_data.name, panel_data.parent)
-                # panel, child_parent = self.populate_frame(element, parent)  # wxpanel.populate_sizer()
-                panel = self.create_panel(panel_data=panel_data, parent=panel_data.parent)
+                panel = wxp.PanelWithState(
+                    parent=parent, main_frame=self, panel_name=panel_data.name, content=panel_data.content
+                )
+                setattr(self, panel_data.name, panel)
 
             elif isinstance(panel_data, wxv.WxPanel):
-                # panel, child_parent = wxv.populate_sizer(element)
-                print("  ->  is a vispy plot", panel_data.parent)
-                pass
+                panel = wxv.VispyPanel(main_frame=self, parent=parent, shape=panel_data.shape, size=panel_data.size)
 
             elif isinstance(panel_data, wxr.WxPanel):
-                # panel, child_parent = wxv.populate_sizer(element)
-                print("  ->  is a richtext panel", panel_data.parent)
+                print("  ->  is a richtext panel", parent)
                 pass
 
             else:
-                print("  ->  is not a panel???", panel_data.parent)
+                print("  ->  is not a panel???", parent)
                 # wxv.populate_sizer(element)
 
-    def create_panel(self, panel_data, parent=None):
-        parent = self.get_parent_object(parent)
-        panel = wxp.PanelWithState(
-            parent=parent, main_frame=self, panel_name=panel_data.name, content=panel_data.content
-        )
-        setattr(self, panel_data.name, panel)
-        return panel
+            if panel is not None:
+                if parent == self:
+                    top_sizer.Add(panel, panel_data.sizer_proportion, panel_data.sizer_flags, panel_data.sizer_border)
+
+        self.SetSizerAndFit(top_sizer)
+        self.Layout()
 
     def get_parent_object(self, parent=None):
         if parent is None:
@@ -253,6 +264,37 @@ class MainFrame(wx.Frame):
             elif hasattr(self, parent):
                 parent = getattr(self, parent)
         return parent
+
+    #
+    # Respond to user actions
+    def handle_user_event(self, event):
+        print("\n", "-"*100, "\n USER ACTION:", event, "\n", "-"*100,)
+        print(" :: ", event.EventObject.source_name, event.EventObject.source_parent, event.EventObject.event_type)
+        if hasattr(self, 'master.user_action'):
+            master = getattr(self, 'master')
+            master.user_action(event)
+
+    def input_state_edit(self, event):
+        print("\n", "-"*100, "\n STATE CHANGE:", event, "\n", "-"*100, "\n")
+        event.Skip()
+
+    def mask_ctrl_input(self, event):
+        pass
+        #             if '_float' in widget.widget_type:
+        #                 input_element = wx_num_ctrl.NumCtrl(
+        #                     self.parent, -1, size=widget.size
+        #                 )
+        #             elif '_int' in widget.widget_type:
+        #                 input_element = wx_int_ctrl.IntCtrl(
+        #                     self.parent, -1, size=widget.size
+        #                 )
+        event.Skip()
+
+    @staticmethod
+    def get_widget_name_by_event(event) -> str | None:
+        if hasattr(event, 'EventObject'):
+            if hasattr(event.EventObject, 'display_name'):
+                return getattr(event.EventObject, 'display_name')
 
 
 #
