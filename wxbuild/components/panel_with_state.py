@@ -53,25 +53,27 @@ class PanelWithState(wx.Panel):
 
 #
 # Basic widget class, all wx.widgets are declared/created here
-class WxWidget(object):
+class WxWidget():
     def __init__(self, **kwargs):  # TODO
         self.widget = kwargs.pop('widget')
         self.parent = kwargs.pop('parent')
+        self.input_element = None
 
+        # If text control, this could contain enable button and input mask/filter
         if 'input_' in self.widget.widget_type:
-            input_element = wx.TextCtrl(
+            self.input_element = wx.TextCtrl(
                 self.parent, -1, size=self.widget.size
             )
             if self.widget.value != '':
-                input_element.SetValue(f'{self.widget.value}')
+                self.input_element.SetValue(f'{self.widget.value}')
 
             if len(self.widget.label) > 0:
-                self.wx_object = self.add_label_in_front_of_input_field(input_element, self.widget)
+                self.wx_object = self.add_label_in_front_of_input_field(self.input_element, self.widget)
                 if 'with_enable' in self.widget.widget_type:
                     bool_btn = wxgb.GradientButton(
                         self.parent, id=-1, size=(-1, 27), label='ON'
                     )
-                    self.add_attributes_to_event_object(bool_btn, 'mouse_click_function')
+                    self.add_attributes_to_event_object(bool_btn)
                     bool_btn.Bind(
                         event=wx.EVT_BUTTON,
                         handler=self.parent.main_frame.handle_user_event,
@@ -82,19 +84,19 @@ class WxWidget(object):
                     bool_btn = wxgb.GradientButton(
                         self.parent, id=-1, size=(-1, 27), label='ON'
                     )
-                    self.add_attributes_to_event_object(bool_btn, 'mouse_click_function')
+                    self.add_attributes_to_event_object(bool_btn)
                     bool_btn.Bind(
                         event=wx.EVT_BUTTON,
                         handler=self.parent.main_frame.handle_user_event,
                     )
                     self.wx_object = wx.BoxSizer(wx.HORIZONTAL)
-                    self.wx_object.Add(input_element, 0, wx.RIGHT | wx.LEFT | wx.ALIGN_CENTER, 0)
+                    self.wx_object.Add(self.input_element, 0, wx.RIGHT | wx.LEFT | wx.ALIGN_CENTER, 0)
                     self.wx_object.Add(bool_btn, 0, wx.RIGHT | wx.LEFT | wx.ALIGN_CENTER, 2)
                 else:
-                    self.wx_object = input_element
+                    self.wx_object = self.input_element
 
-            self.add_attributes_to_event_object(input_element, 'mouse_enter_function')
-            input_element.Bind(
+            self.add_attributes_to_event_object(self.input_element)
+            self.input_element.Bind(
                 wx.EVT_CHAR,
                 handler=self.parent.main_frame.input_state_edit,
             )
@@ -113,30 +115,30 @@ class WxWidget(object):
                     self.parent, -1, label=self.widget.label
                 )
             elif self.widget.widget_type == 'choice':
-                input_element = wx.Choice(
+                self.input_element = wx.Choice(
                     self.parent, -1, choices=self.widget.choices
                 )
                 if self.widget.value != '':
                     try:
-                        input_element.SetSelection(self.widget.choices.index(self.widget.value))
+                        self.input_element.SetSelection(self.widget.choices.index(self.widget.value))
                     except ValueError:
                         pass
 
-                self.add_attributes_to_event_object(input_element, 'mouse_enter_function')
-                input_element.Bind(
+                self.add_attributes_to_event_object(self.input_element)
+                self.input_element.Bind(
                     wx.EVT_CHOICE,
                     handler=self.parent.main_frame.input_state_edit,
                 )
                 if self.widget.value_edit_function:
-                    input_element.Bind(
+                    self.input_element.Bind(
                         wx.EVT_CHOICE,
                         handler=self.parent.main_frame.handle_user_event,
                     )
 
                 if len(self.widget.label) > 0:
-                    self.wx_object = self.add_label_in_front_of_input_field(input_element, self.widget)
+                    self.wx_object = self.add_label_in_front_of_input_field(self.input_element, self.widget)
                 else:
-                    self.wx_object = input_element
+                    self.wx_object = self.input_element
             else:
                 self.wx_object = wx.StaticText(
                     self.parent, -1, label=f'"error - couldnt create widget - {self.widget.label}"'
@@ -145,32 +147,44 @@ class WxWidget(object):
         # Mouse events, connects to "handle_user_event"
         if self.widget.mouse_click_function:
             if isinstance(self.wx_object, wx.Button) or isinstance(self.wx_object, wxgb.GradientButton):
-                self.add_attributes_to_event_object(self.wx_object, 'mouse_click_function')
+                self.add_attributes_to_event_object(self.wx_object)
                 self.wx_object.Bind(
                     event=wx.EVT_BUTTON,
                     handler=self.parent.main_frame.handle_user_event,
                 )
+        if self.widget.mouse_rightclick_function:
+            if isinstance(self.wx_object, wx.Button) or isinstance(self.wx_object, wxgb.GradientButton):
+                self.add_attributes_to_event_object(self.wx_object)
+                self.wx_object.Bind(
+                    event=wx.EVT_BUTTON,
+                    handler=self.parent.main_frame.handle_user_event,
+                )
+                self.wx_object.Bind(
+                    event=wx.EVT_RIGHT_UP,
+                    handler=self.parent.main_frame.handle_user_event,
+                )
         if self.widget.mouse_doubleclick_function:
             if isinstance(self.wx_object, wx.Button) or isinstance(self.wx_object, wxgb.GradientButton):
-                self.add_attributes_to_event_object(self.wx_object, 'mouse_doubleclick_function')
+                self.add_attributes_to_event_object(self.wx_object)
                 self.wx_object.Bind(
                     event=wx.EVT_BUTTON,
                     handler=self.parent.main_frame.handle_user_event,
                 )
         if self.widget.mouse_enter_function:
-            self.add_attributes_to_event_object(self.wx_object, 'mouse_enter_function')
+            self.add_attributes_to_event_object(self.wx_object)
             self.wx_object.Bind(
                 event=wx.EVT_ENTER_WINDOW,
                 handler=self.parent.main_frame.handle_user_event,
             )
         if self.widget.mouse_leave_function:
-            self.add_attributes_to_event_object(self.wx_object, 'mouse_leave_function')
+            self.add_attributes_to_event_object(self.wx_object)
             self.wx_object.Bind(
                 event=wx.EVT_LEAVE_WINDOW,
                 handler=self.parent.main_frame.handle_user_event,
             )
 
         self.set_style_of_self()
+        self.update_value_from_state()
 
     def set_label(self):  # TODO
         pass
@@ -178,11 +192,34 @@ class WxWidget(object):
     def get_label(self):  # TODO
         pass
 
-    def set_value(self):  # TODO
-        pass
+    def set_value(self, value):  # TODO
+        print(" SETTING VALUE OF WIDGET:: ", value, self.widget.name)
+        if isinstance(self.input_element, wx.TextCtrl):
+            self.input_element.SetValue(str(value))
+        elif isinstance(self.input_element, wx.Choice):
+            self.input_element.SetSelection(self.widget.choices.index(value))
+        self.widget.value = value
 
     def get_value(self):  # TODO
-        pass
+        return self.widget.value
+
+    def set_value_by_event(self, value):
+        if self.input_element is None:
+            if isinstance(self.wx_object, wx.TextCtrl):
+                self.widget.value = value
+            elif isinstance(self.wx_object, wx.Choice):
+                self.widget.value = self.wx_object.GetString(self.wx_object.GetCurrentSelection())
+        else:
+            if isinstance(self.input_element, wx.TextCtrl):
+                self.widget.value = value
+            elif isinstance(self.input_element, wx.Choice):
+                self.widget.value = self.input_element.GetString(self.input_element.GetCurrentSelection())
+
+    def update_value_from_state(self):
+        state_key = f'state__{self.parent.panel_name}' \
+                    f'__{self.widget.name}'
+        if state_key in self.parent.main_frame.state:
+            self.set_value(self.parent.main_frame.state[state_key])
 
     def set_color_text(self):  # TODO
         pass
@@ -196,11 +233,8 @@ class WxWidget(object):
     def set_choices(self):  # TODO
         pass
 
-    def add_attributes_to_event_object(self, event_object, event_type):
-        setattr(event_object, 'source_name', self.widget.name)
-        setattr(event_object, 'source_parent', self.parent)
-        setattr(event_object, 'event_type', event_type)
-        setattr(event_object, 'panel_name', self.parent.panel_name)
+    def add_attributes_to_event_object(self, event_object):
+        setattr(event_object, 'wx_widget', self)
         if not isinstance(event_object, wx.Sizer):
             widget_name = f'state__{self.parent.panel_name}__{self.widget.name}'
             setattr(self.parent.main_frame, widget_name, event_object)
@@ -255,6 +289,7 @@ class Widget:
     #
     value_edit_function: bool = False
     mouse_click_function: bool = False
+    mouse_rightclick_function: bool = False
     mouse_doubleclick_function: bool = False
     mouse_enter_function: bool = False
     mouse_leave_function: bool = False

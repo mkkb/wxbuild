@@ -155,6 +155,18 @@ control_panel_all_widgets = WxComponents.panel(
             choices=['A', 'B', 'C', 'D', 'E', 'default'],
             value='D',
         ),
+        WxComponents.spacer(5),
+        WxComponents.widget(
+            widget_type=WxComponents.widgets.GradientButton,
+            name='rightclick_button',
+            label=f'RightClick',
+            value=True,
+            style_theme=WxComponents.styles.c5,
+            mouse_click_function=True,
+            mouse_rightclick_function=True,
+            end_space=1,
+            size=(-1, -1),
+        ),
     )
 )
 

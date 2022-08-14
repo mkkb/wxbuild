@@ -4,6 +4,7 @@ import sys
 import time
 import os
 import tempfile
+import json
 from threading import Thread
 from dataclasses import dataclass
 
@@ -37,8 +38,6 @@ class WxComponents:
     richtext = wxr.WxPanel
     widgets = wxp.Widgets
     styles = wxp.Styles
-    #
-    # template_values: tuple = (),
 
 
 @dataclass
@@ -60,11 +59,12 @@ class MainFrame(wx.Frame):
         self.SetTitle(self.config.title)
         self.screen_w, self.screen_h = wx.DisplaySize()
 
+        self.load_state()
         self.thread_workers = []
         self.idle_functions = []
 
+
         self.double_click_status = MouseDoubleClick()
-        # self.double_click_status.double_clicked("widget_name?")
 
         if self.config.monitor_resources:
             self.process_info = ProcessInfo()
@@ -85,6 +85,8 @@ class MainFrame(wx.Frame):
 
         self.resized = False
         self.exit = False
+
+        print(" self.state:: ", self.state)
 
     #
     # Event based functions
@@ -122,23 +124,30 @@ class MainFrame(wx.Frame):
 
     #
     # Saving UI state to temporary file
-    def save_state(self):  # TODO
-        pass
+    def save_state(self):
+        if not os.path.exists(self.config.state_path):
+            if not os.path.exists(self.config.state_folder):
+                os.makedirs(self.config.state_folder)
+        with open(self.config.state_path, mode='w') as f_:
+            json.dump(self.state, f_)
 
-    def load_state(self):  # TODO
-        pass
+    def load_state(self):
+        if os.path.exists(self.config.state_path):
+            with open(self.config.state_path, mode='r') as f_:
+                self.state = json.load(f_)
+        else:
+            self.state = {}
 
     def reset_state(self):  # TODO
         pass
 
-    def add_state_value(self, name, value):  # TODO
-        pass
+    def set_state_value(self, state_key, value):
+        self.state[state_key] = value
+        self.save_state()
 
-    def set_state_value(self, name, value):  # TODO
-        pass
-
-    def get_state_value(self, name):  # TODO
-        pass
+    def get_state_value(self, state_key):
+        if state_key in self.state:
+            return self.state[state_key]
 
     #
     # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers
@@ -231,15 +240,18 @@ class MainFrame(wx.Frame):
             else:
                 parent = panel_data.parent
 
+            # Normal wx.Panel
             if isinstance(panel_data, wxp.WxPanel):
                 panel = wxp.PanelWithState(
                     parent=parent, main_frame=self, panel_name=panel_data.name, content=panel_data.content
                 )
                 setattr(self, panel_data.name, panel)
 
+            # A vispy panel
             elif isinstance(panel_data, wxv.WxPanel):
                 panel = wxv.VispyPanel(main_frame=self, parent=parent, shape=panel_data.shape, size=panel_data.size)
 
+            # Rich text panel
             elif isinstance(panel_data, wxr.WxPanel):
                 print("  ->  is a richtext panel", parent)
                 pass
@@ -255,46 +267,97 @@ class MainFrame(wx.Frame):
         self.SetSizerAndFit(top_sizer)
         self.Layout()
 
-    def get_parent_object(self, parent=None):
-        if parent is None:
-            parent = self
-        elif isinstance(parent, str):
-            if parent == 'main_frame':
-                parent = self
-            elif hasattr(self, parent):
-                parent = getattr(self, parent)
-        return parent
+    # def get_parent_object(self, parent=None):
+    #     if parent is None:
+    #         parent = self
+    #     elif isinstance(parent, str):
+    #         if parent == 'main_frame':
+    #             parent = self
+    #         elif hasattr(self, parent):
+    #             parent = getattr(self, parent)
+    #     return parent
 
     #
     # Respond to user actions
     def handle_user_event(self, event):
-        print("\n", "-"*100, "\n USER ACTION:", event, "\n", "-"*100,)
-        print(" :: ", event.EventObject.source_name, event.EventObject.source_parent, event.EventObject.event_type)
+        # print("\n", "-"*100, "\n USER ACTION:", event.EventObject.wx_widget.widget.name)
+        # print(" .. ", event.EventType, vars(event))
+        # print("-"*100)
+        if event.EventType == wx.EVT_BUTTON.typeId:
+            if '_with_enable' in event.EventObject.wx_widget.widget.widget_type:
+                print(" disable/enable input field", event.EventObject.wx_widget.widget.name)
+            else:
+                if event.EventObject.wx_widget.widget.mouse_click_function:
+                    print(" normal click!", event.EventObject.wx_widget.widget.name)
+                if event.EventObject.wx_widget.widget.mouse_doubleclick_function:
+                    if self.double_click_status.double_clicked(event.EventObject.wx_widget.widget.name):
+                        print(" double clicked!?!?! ", event.EventObject.wx_widget.widget.name)
+                else:
+                    self.double_click_status.reset()
+        elif event.EventType == wx.EVT_RIGHT_UP.typeId:
+            if event.EventObject.wx_widget.widget.mouse_rightclick_function:
+                print(" right click!!", event.EventObject.wx_widget.widget.name)
+
+        else:
+            if event.EventType == wx.EVT_ENTER_WINDOW.typeId:
+                print(" entering window:::", event.EventObject.wx_widget.widget.name)
+            elif event.EventType == wx.EVT_LEAVE_WINDOW.typeId:
+                print(" leaving window:::", event.EventObject.wx_widget.widget.name)
+
         if hasattr(self, 'master.user_action'):
             master = getattr(self, 'master')
             master.user_action(event)
 
     def input_state_edit(self, event):
-        print("\n", "-"*100, "\n STATE CHANGE:", event, "\n", "-"*100, "\n")
-        event.Skip()
+        if event.EventType == wx.EVT_CHAR.typeId:
+            new_char = event.GetKeyCode()
+            if new_char not in (wx.WXK_BACK, wx.WXK_DELETE, wx.WXK_LEFT, wx.WXK_RIGHT):
+                insertion_pos = event.EventObject.wx_widget.input_element.GetInsertionPoint()
+                old_value = event.EventObject.wx_widget.input_element.GetValue()
+                new_value = old_value[:insertion_pos] + chr(new_char) + old_value[insertion_pos:]
 
-    def mask_ctrl_input(self, event):
-        pass
-        #             if '_float' in widget.widget_type:
-        #                 input_element = wx_num_ctrl.NumCtrl(
-        #                     self.parent, -1, size=widget.size
-        #                 )
-        #             elif '_int' in widget.widget_type:
-        #                 input_element = wx_int_ctrl.IntCtrl(
-        #                     self.parent, -1, size=widget.size
-        #                 )
-        event.Skip()
+            else:
+                if new_char in (wx.WXK_BACK, wx.WXK_DELETE,):
+                    insertion_pos = event.EventObject.wx_widget.input_element.GetInsertionPoint()
+                    old_value = event.EventObject.wx_widget.input_element.GetValue()
+                    if new_char == wx.WXK_BACK:
+                        new_value = old_value[:insertion_pos-1] + old_value[insertion_pos:]
+                    else:
+                        new_value = old_value[:insertion_pos] + old_value[insertion_pos+1:]
+                else:
+                    event.Skip()
+                    return
 
-    @staticmethod
-    def get_widget_name_by_event(event) -> str | None:
-        if hasattr(event, 'EventObject'):
-            if hasattr(event.EventObject, 'display_name'):
-                return getattr(event.EventObject, 'display_name')
+            if 'input_int' in event.EventObject.wx_widget.widget.widget_type:
+                if new_char == wx.WXK_SPACE:
+                    return
+                else:
+                    try:
+                        new_value = int(new_value)
+                    except ValueError:
+                        return
+            elif 'input_float' in event.EventObject.wx_widget.widget.widget_type:
+                if new_char == wx.WXK_SPACE:
+                    return
+                else:
+                    try:
+                        new_value = float(new_value)
+                    except ValueError:
+                        return
+
+            event.EventObject.wx_widget.set_value_by_event(value=new_value)
+            state_key = f'state__{event.EventObject.wx_widget.parent.panel_name}' \
+                        f'__{event.EventObject.wx_widget.widget.name}'
+        elif event.EventType == wx.EVT_CHOICE.typeId:
+            event.EventObject.wx_widget.set_value_by_event(value=None)
+            state_key = f'state__{event.EventObject.wx_widget.parent.panel_name}' \
+                        f'__{event.EventObject.wx_widget.widget.name}'
+        else:
+            event.Skip()
+            return
+
+        self.set_state_value(state_key=state_key, value=event.EventObject.wx_widget.get_value())
+        event.Skip()
 
 
 #
@@ -435,13 +498,18 @@ def monitor_app_resources__loop_backend(frame) -> None:
 class MouseDoubleClick:
     widget_name: str = ""
     time_of_last_click: int = 0
-    time_limit: int = 400  # ms
+    time_limit: int = 400 * 1e6  # Convert to ms
 
-    def double_clicked(self, widget_name) -> bool:
+    def double_clicked(self, widget_name: str = '') -> bool:
         t_now = time.perf_counter_ns()
         if widget_name == self.widget_name:
-            return t_now - self.time_of_last_click < self.time_limit
+            if t_now - self.time_of_last_click < self.time_limit:
+                self.time_of_last_click = t_now
+                return True
         else:
             self.widget_name = widget_name
-            self.time_of_last_click = t_now
-            return False
+        self.time_of_last_click = t_now
+        return False
+
+    def reset(self):
+        self.widget_name = ''
