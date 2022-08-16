@@ -8,7 +8,10 @@ def main():
 
     app_config = AppConfiguration
     app_config.title = 'Pseudo Oscilloscope'
+    app_config.extra_folder = "WellGuard"
+    app_config.reset_paths()
     app_config.monitor_resources = True
+    print("  --> app_config.asset_folder:: ", app_config.asset_folder)
 
     frm = MainFrame(app_config=app_config)
 
