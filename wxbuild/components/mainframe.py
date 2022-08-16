@@ -21,12 +21,29 @@ import wxbuild.components.panel_richtext as wxr
 class AppConfiguration:
     """Main frame configuration, set title, folder location, etc..."""
     title: str = 'wxDemo'
+    extra_folder: str = ""
     asset_folder: str = ''
     state_folder: str = rf'{tempfile.gettempdir()}{os.path.sep}{title}{os.path.sep}'
     state_path: str = rf'{state_folder}{os.path.sep}state.json'
     status_bar_default_text: str = f'Welcome to {title}'
     monitor_resources: bool = False
     bc_color: str = 'white'
+
+    def __init__(self):
+        print("\n  :::  SEARCHING FOR ASSETS FOLDER  :::")
+        print("  --  ", os.curdir,  __file__)
+
+    def reset_paths(self):
+        if len(self.extra_folder) > 0:
+            self.state_folder = rf'{tempfile.gettempdir()}' \
+                                rf'{os.path.sep}{self.extra_folder}' \
+                                rf'{os.path.sep}{self.title}' \
+                                rf'{os.path.sep}'
+        else:
+            self.state_folder = rf'{tempfile.gettempdir()}' \
+                                rf'{os.path.sep}{self.title}' \
+                                rf'{os.path.sep}'
+        self.state_path = rf'{self.state_folder}{os.path.sep}state.json'
 
 
 @dataclass
