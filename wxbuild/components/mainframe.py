@@ -12,9 +12,12 @@ import numpy as np
 import wx
 import psutil
 
+import wxbuild.components.widget as wg
 import wxbuild.components.panel_with_state as wxp
 import wxbuild.components.panel_vispy as wxv
 import wxbuild.components.panel_richtext as wxr
+import wxbuild.master_abstract as master
+from wxbuild.components.styles import Styles
 
 
 @dataclass
@@ -29,39 +32,29 @@ class AppConfiguration:
     bc_color: str = 'white'
     asset_folder: str = ""
 
-    print(" .... end of dataclass AppConfiguration initiation ....")
-    print(" ..", os.curdir,  __file__)
-
     @classmethod
-    def reset_paths(self):
-        if len(self.extra_folder) > 0:
-            self.state_folder = rf'{tempfile.gettempdir()}' \
-                                rf'{os.path.sep}{self.extra_folder}' \
-                                rf'{os.path.sep}{self.title}' \
+    def reset_paths(cls):
+        if len(cls.extra_folder) > 0:
+            cls.state_folder = rf'{tempfile.gettempdir()}' \
+                                rf'{os.path.sep}{cls.extra_folder}' \
+                                rf'{os.path.sep}{cls.title}' \
                                 rf'{os.path.sep}'
         else:
-            self.state_folder = rf'{tempfile.gettempdir()}' \
-                                rf'{os.path.sep}{self.title}' \
+            cls.state_folder = rf'{tempfile.gettempdir()}' \
+                                rf'{os.path.sep}{cls.title}' \
                                 rf'{os.path.sep}'
-        self.state_path = rf'{self.state_folder}{os.path.sep}state.json'
+        cls.state_path = rf'{cls.state_folder}{os.path.sep}state.json'
+
 
 @dataclass
 class WxComponents:
     panel = wxp.WxPanel
-    widget = wxp.Widget
+    widget = wg.Widget
     spacer = wxp.Spacer
     vispypanel = wxv.WxPanel
     richtext = wxr.WxPanel
-    widgets = wxp.Widgets
-    styles = wxp.Styles
-
-
-@dataclass
-class Colors:
-    cycler: tuple = (
-        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-    )
+    widgets = wg.Widgets
+    styles = Styles
 
 
 class MainFrame(wx.Frame):
@@ -75,10 +68,11 @@ class MainFrame(wx.Frame):
         self.SetTitle(self.config.title)
         self.screen_w, self.screen_h = wx.DisplaySize()
 
+        self.state = {}
+        self.master = master.Master()
         self.load_state()
         self.thread_workers = []
         self.idle_functions = []
-
 
         self.double_click_status = MouseDoubleClick()
 
@@ -87,7 +81,7 @@ class MainFrame(wx.Frame):
             self.toolbar = self.CreateToolBar()
             self.monitor_textbox = wx.TextCtrl(self.toolbar, -1, size=(self.screen_w, 40))
             monitor_app_resources__init(self)
-            self.idle_functions.append((monitor_app_resources__loop_frontend, self))
+            self.add_idle_function(func=monitor_app_resources__loop_frontend, args=self, timeout=0)
 
         # print( '--', self.get_monitor_size(index=0) )
         # print( '--', self.get_monitor_sizes() )
@@ -98,11 +92,14 @@ class MainFrame(wx.Frame):
 
         self.bg_panel = wx.Panel(self)
         self.SetBackgroundColour(self.config.bc_color)
+        self.widget_state_map = {}
 
         self.resized = False
         self.exit = False
+        self.init = False
 
-        print(" self.state:: ", self.state)
+    def post_idle(self):
+        self.master.post_init()
 
     #
     # Event based functions
@@ -130,8 +127,31 @@ class MainFrame(wx.Frame):
             if not worker.running:
                 self.delete_thread_worker(worker.wx_id)
 
-        for func, args in self.idle_functions:
-            func(args)
+        for i, (func, args, last_time_run, timeout) in enumerate(self.idle_functions):
+            if time.perf_counter_ns() - last_time_run > timeout:
+                self.idle_functions[i][2] = time.perf_counter_ns()
+                if args is not None:
+                    func(args)
+                else:
+                    func()
+
+        if not self.init:
+            self.init = True
+            self.post_idle()
+
+    def add_idle_function(self, func, args=None, timeout=100):
+        '''
+        Add function that will be run every time UI is idle and timeout has expired
+
+                Parameters:
+                        func (callable): Function to be run
+                        args (object | tuple | list): Function argument
+                        timeout (int): Time in ms, minumum time between function calls
+
+                Returns:
+                        None
+        '''
+        self.idle_functions.append([func, args, time.perf_counter_ns(), timeout*1e6])
 
     @staticmethod
     def final_exit(*args):
@@ -151,8 +171,6 @@ class MainFrame(wx.Frame):
         if os.path.exists(self.config.state_path):
             with open(self.config.state_path, mode='r') as f_:
                 self.state = json.load(f_)
-        else:
-            self.state = {}
 
     def reset_state(self):  # TODO
         pass
@@ -168,12 +186,13 @@ class MainFrame(wx.Frame):
     #
     # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers
     def init_thread_worker(self, run_func, worker_id=-1, callback_func=None, run_once=True, args=None):
-
+        print("\nAppending worker:")
         worker_index = self.get_thread_worker_by_id(worker_id)
 
         # Create a new thread
         if worker_index is None:
             if callback_func is not None:
+                print(" - connecting worker to callback function:", callback_func)
                 self.Connect(-1, -1, worker_id, callback_func)
                 call_event = True
             else:
@@ -182,13 +201,13 @@ class MainFrame(wx.Frame):
                 func=run_func, parent=self, wx_id=worker_id, run_once=run_once, args=args, call_event=call_event
             )
 
-            print("Appending worker: ", thread_worker, worker_id)
+            print(" - thread worker: ", thread_worker, worker_id)
             self.thread_workers.append(thread_worker)
         else:
-            print(" worker already exists...")
+            print(" - worker already exists...")
             worker = self.thread_workers[worker_index]
             if worker.is_stopped():
-                print('Worker is stopped, restart it?')
+                print('Worker is stopped, restart it?\n')
 
     def delete_thread_worker(self, worker_id):
         worker_index = self.get_thread_worker_by_id(worker_id)
@@ -210,22 +229,30 @@ class MainFrame(wx.Frame):
         for w_id in worker_ids:
             self.delete_thread_worker(w_id)
 
+    def add_timer(self, interval=50, func=None):
+        if func is None:
+            def timer_update(*args): pass
+            func = timer_update
+        self.timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, func, self.timer)
+        self.timer.Start(interval)
+
     #
     # For multiple monitors
     @staticmethod
-    def get_monitor_sizes() -> tuple:
-        smallest_monitor = [-1, 99999]
-        largest_monitor = [-1, 0]
+    def get_monitor_sizes() -> dict:
+        monitor_sizes = []
+        monitor_inches = []
         n_monitors = wx.Display.GetCount()
         for i in range(n_monitors):
-            monitor_width = wx.Display(i).GetGeometry().GetWidth()
-            if monitor_width < smallest_monitor[1]:
-                smallest_monitor[0] = i
-                smallest_monitor[1] = monitor_width
-            if monitor_width > largest_monitor[1]:
-                largest_monitor[0] = i
-                largest_monitor[1] = monitor_width
-        return smallest_monitor, largest_monitor, n_monitors
+            m_width = wx.Display(i).GetGeometry().GetWidth()
+            m_height = wx.Display(i).GetGeometry().GetHeight()
+            monitor_sizes.append((m_width, m_height))
+            monitor_inches.append(np.sqrt(m_height**2 + m_width**2))
+        sorted_sizes = [x for _, x in sorted(zip(monitor_inches, monitor_sizes))]
+        sorted_indecies = [x for _, x in sorted(zip(monitor_inches, [i for i in range(n_monitors)]))]
+        monitor_dict = {i: (sorted_sizes[i], sorted_indecies[i]) for i in range(n_monitors)}
+        return monitor_dict
 
     @staticmethod
     def get_monitor_size(index: int) -> tuple:
@@ -236,9 +263,8 @@ class MainFrame(wx.Frame):
 
     def maximize_in_monitor(self, screen_index=None) -> None:
         if screen_index is None:
-            smallest_monitor, largest_monitor, n_monitors = self.get_monitor_sizes()
-            smallest_monitor_index, smallest_monitor_width = smallest_monitor
-            target_index = smallest_monitor_index
+            monitor_dict = self.get_monitor_sizes()
+            target_index = monitor_dict[0][1]
         else:
             target_index = screen_index
 
@@ -261,37 +287,32 @@ class MainFrame(wx.Frame):
                 panel = wxp.PanelWithState(
                     parent=parent, main_frame=self, panel_name=panel_data.name, content=panel_data.content
                 )
-                setattr(self, panel_data.name, panel)
+                setattr(panel, 'dataclass', panel_data)
+                panel.post_init()
 
             # A vispy panel
             elif isinstance(panel_data, wxv.WxPanel):
                 panel = wxv.VispyPanel(main_frame=self, parent=parent, shape=panel_data.shape, size=panel_data.size)
+                setattr(panel, 'dataclass', panel_data)
+                panel.post_init()
 
             # Rich text panel
             elif isinstance(panel_data, wxr.WxPanel):
-                print("  ->  is a richtext panel", parent)
-                pass
+                panel = wxr.RichtextPanel(main_frame=self, parent=parent, shape=panel_data.shape)
+                setattr(panel, 'dataclass', panel_data)
+                panel.post_init()
 
             else:
                 print("  ->  is not a panel???", parent)
                 # wxv.populate_sizer(element)
 
             if panel is not None:
+                setattr(self, panel_data.name, panel)
                 if parent == self:
                     top_sizer.Add(panel, panel_data.sizer_proportion, panel_data.sizer_flags, panel_data.sizer_border)
 
         self.SetSizerAndFit(top_sizer)
         self.Layout()
-
-    # def get_parent_object(self, parent=None):
-    #     if parent is None:
-    #         parent = self
-    #     elif isinstance(parent, str):
-    #         if parent == 'main_frame':
-    #             parent = self
-    #         elif hasattr(self, parent):
-    #             parent = getattr(self, parent)
-    #     return parent
 
     #
     # Respond to user actions
@@ -299,30 +320,30 @@ class MainFrame(wx.Frame):
         # print("\n", "-"*100, "\n USER ACTION:", event.EventObject.wx_widget.widget.name)
         # print(" .. ", event.EventType, vars(event))
         # print("-"*100)
+        event_type = ''
+        widget_name = event.EventObject.wx_widget.widget.name
+        panel_name = event.EventObject.wx_widget.parent.panel_name
         if event.EventType == wx.EVT_BUTTON.typeId:
             if '_with_enable' in event.EventObject.wx_widget.widget.widget_type:
-                print(" disable/enable input field", event.EventObject.wx_widget.widget.name)
+                event_type = 'toggle_input_field'
             else:
                 if event.EventObject.wx_widget.widget.mouse_click_function:
-                    print(" normal click!", event.EventObject.wx_widget.widget.name)
+                    event_type = 'normal_click'
                 if event.EventObject.wx_widget.widget.mouse_doubleclick_function:
                     if self.double_click_status.double_clicked(event.EventObject.wx_widget.widget.name):
-                        print(" double clicked!?!?! ", event.EventObject.wx_widget.widget.name)
+                        event_type = 'double_click'
                 else:
                     self.double_click_status.reset()
         elif event.EventType == wx.EVT_RIGHT_UP.typeId:
             if event.EventObject.wx_widget.widget.mouse_rightclick_function:
-                print(" right click!!", event.EventObject.wx_widget.widget.name)
-
+                event_type = 'right_click'
         else:
             if event.EventType == wx.EVT_ENTER_WINDOW.typeId:
-                print(" entering window:::", event.EventObject.wx_widget.widget.name)
+                event_type = 'window_enter'
             elif event.EventType == wx.EVT_LEAVE_WINDOW.typeId:
-                print(" leaving window:::", event.EventObject.wx_widget.widget.name)
+                event_type = 'window_leave'
 
-        if hasattr(self, 'master.user_action'):
-            master = getattr(self, 'master')
-            master.user_action(event)
+        self.master.handle_user_event(event_type, widget_name, panel_name)
 
     def input_state_edit(self, event):
         if event.EventType == wx.EVT_CHAR.typeId:
@@ -375,6 +396,36 @@ class MainFrame(wx.Frame):
         self.set_state_value(state_key=state_key, value=event.EventObject.wx_widget.get_value())
         event.Skip()
 
+    #
+    # Widget related actions
+    def get_widget_by_names(self, widget_name, panel_name):
+        attr_name = f'state__{panel_name}__{widget_name}'
+        if hasattr(self, attr_name):
+            return getattr(self, attr_name)
+
+    def set_widget_state_map(self, widget_state_map: dict):
+        self.widget_state_map = widget_state_map
+
+    def set_state_of_widget(self, state, widget_name, panel_name):
+        widget = self.get_widget_by_names(widget_name=widget_name, panel_name=panel_name)
+        if widget is not None:
+            style = self.widget_state_map[widget.wx_widget.widget.state_map][state]
+            widget.wx_widget.set_style_of_widget(widget, style)
+
+    def set_label_of_widget(self, text, widget_name, panel_name):
+        widget = self.get_widget_by_names(widget_name=widget_name, panel_name=panel_name)
+        if widget is not None:
+            widget.wx_widget.set_label(widget, text)
+
+    def set_font_of_widget(self, font, widget_name, panel_name):
+        widget = self.get_widget_by_names(widget_name=widget_name, panel_name=panel_name)
+        if widget is not None:
+            widget.wx_widget.set_font(widget, font)
+
+    def set_color_of_widget(self, color, widget_name, panel_name):
+        widget = self.get_widget_by_names(widget_name=widget_name, panel_name=panel_name)
+        if widget is not None:
+            widget.wx_widget.set_style_of_widget(widget, color)
 
 #
 # Threading class related #
@@ -493,7 +544,6 @@ def monitor_app_resources__loop_frontend(frame) -> None:
 
 
 def monitor_app_resources__loop_backend(frame) -> None:
-
     process = psutil.Process(frame.process_info.pid)
     frame.process_info.uptime = f'{datetime.timedelta(seconds=time.time() - psutil.boot_time())}'
     frame.process_info.time_on_cpu = "{:}".format(
