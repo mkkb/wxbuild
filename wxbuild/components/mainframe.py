@@ -31,6 +31,9 @@ class AppConfiguration:
     monitor_resources: bool = False
     bc_color: str = 'white'
     asset_folder: str = ""
+    #
+    icon_path: str = ""
+    logo_path: str = "",
 
     @classmethod
     def reset_paths(cls):
@@ -65,7 +68,7 @@ class MainFrame(wx.Frame):
             self.config = AppConfiguration
         super().__init__(None, *args, **kwargs)
 
-        self.SetTitle(self.config.title)
+        self._set_mainframe_icons_and_etc()
         self.screen_w, self.screen_h = wx.DisplaySize()
 
         self.config_window_open = False
@@ -313,6 +316,14 @@ class MainFrame(wx.Frame):
 
         self.SetSizerAndFit(top_sizer)
         self.Layout()
+
+    def _set_mainframe_icons_and_etc(self):
+        self.SetTitle(self.config.title)
+
+        if os.path.exists(self.config.icon_path):
+            icon = wx.Icon()
+            icon.CopyFromBitmap(wx.Bitmap(self.config.icon_path, wx.BITMAP_TYPE_ANY))
+            self.SetIcon(icon)
 
     #
     # Respond to user actions
