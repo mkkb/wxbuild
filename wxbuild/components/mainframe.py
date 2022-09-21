@@ -68,6 +68,9 @@ class MainFrame(wx.Frame):
         self.SetTitle(self.config.title)
         self.screen_w, self.screen_h = wx.DisplaySize()
 
+        self.config_window_open = False
+        self.config_window = None
+
         self.state = {}
         self.master = master.Master()
         self.load_state()
@@ -82,9 +85,6 @@ class MainFrame(wx.Frame):
             self.monitor_textbox = wx.TextCtrl(self.toolbar, -1, size=(self.screen_w, 40))
             monitor_app_resources__init(self)
             self.add_idle_function(func=monitor_app_resources__loop_frontend, args=self, timeout=0)
-
-        # print( '--', self.get_monitor_size(index=0) )
-        # print( '--', self.get_monitor_sizes() )
 
         self.Bind(wx.EVT_SIZE, self.on_repaint)
         self.Bind(wx.EVT_IDLE, self.on_idle)
@@ -427,6 +427,41 @@ class MainFrame(wx.Frame):
         if widget is not None:
             widget.wx_widget.set_style_of_widget(widget, color)
 
+    # Extra window calls - popups, etc..
+    def create_config_popup(self, setup_dict, state_key_prefix='connection_config', default_values=None):
+        if not self.config_window_open:
+            self.config_window_open = True
+            for key, item in setup_dict.items():
+                # print(" -> ", type(item), item, isinstance(item, str), isinstance(item, int), isinstance(item, classmethod), item == str, item == int, item == float)
+                if not isinstance(item, str):
+                    state_key = f"{state_key_prefix.lower()}_{key.lower()}"
+                    print(" key:: ", key, item, state_key)
+                else:
+                    pass
+
+            # dlg = wx.FontDialog(self,wx.FontData())
+            # if dlg.ShowModal() == wx.ID_OK:
+            #     data = dlg.GetFontData()
+            #     font = data.GetChosenFont()
+            #     # self.text.SetFont(font)
+            #     print(" data:: ", data)
+            #     print(" font:: ", font)
+            # dlg.Destroy()
+            #
+
+            title = 'Connection Setup'
+            self.config_window = PopupWindow(title=title, parent=wx.GetTopLevelParent(self))
+            mouse_pos = wx.GetMousePosition()
+            self.config_window.Move(mouse_pos[0] + 20, mouse_pos[1] + 20)
+        else:
+            self.config_window.SetFocus()
+            mouse_pos = wx.GetMousePosition()
+            self.config_window.Move(mouse_pos[0] + 20, mouse_pos[1] + 20)
+
+    def _config_popup_closed(self):
+        self.config_window_open = False
+        self.config_window = None
+
 #
 # Threading class related #
 class WorkerThreadResultEvent(wx.PyEvent):
@@ -579,3 +614,28 @@ class MouseDoubleClick:
 
     def reset(self):
         self.widget_name = ''
+
+
+#...
+class PopupWindow(wx.Frame):
+    """
+    Class used for creating frames other than the main one
+    """
+
+    def __init__(self, title, parent=None):
+        self.parent = parent
+        wx.Frame.__init__(self, parent=parent, title=title)
+
+        self.Bind(wx.EVT_CLOSE, self._on_close)
+        self.Bind(wx.EVT_KILL_FOCUS, self._on_lose_focus)
+
+        self.Show()
+
+    def _on_close(self, event):
+        self.parent._config_popup_closed()
+        event.Skip()
+
+    def _on_lose_focus(self, event):
+        self.parent._config_popup_closed()
+        self.Destroy()
+        event.Skip()

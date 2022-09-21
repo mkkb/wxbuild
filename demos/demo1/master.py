@@ -35,10 +35,6 @@ class Master(master.Master):
 
     def post_init(self):
         print("\n-- POST Initiation of Master --\n")
-        monitor_sizes = self.main_frame.get_monitor_sizes()
-        smallest_screen = monitor_sizes[0][1]
-        self.main_frame.maximize_in_monitor(smallest_screen)
-
         # Enforce fps of selected interval
         self.main_frame.add_timer(interval=100)
 
@@ -49,13 +45,26 @@ class Master(master.Master):
         self.init_vispy_plots()
         self.main_frame.add_idle_function(func=self.update_vispy_plots, args=None, timeout=150)
 
+    def post_vispy_init(self):
+        monitor_sizes = self.main_frame.get_monitor_sizes()
+        smallest_screen = monitor_sizes[0][1]
+        self.main_frame.maximize_in_monitor(smallest_screen)
+        self.main_frame.vispy_plot.Hide()
+        #
+        self.main_frame.vispy_plot.mouseclick_callback = self.vispy_mouseclick
+        self.main_frame.vispy_plot.mousemove_callback = self.vispy_mousemove
+
+        self.main_frame.rich_text.SetMinSize(wx.Size(10, 10))
         self.main_frame.Layout()
 
     def handle_user_event(self, event_type, name, panel):
         print(f" HANDLING USER EVENT:::  type: {event_type} | name: {name} | panel: {panel}")
         if panel == 'connections':
-            self.connectivity_state = (self.connectivity_state + 1) % 6
-            self.main_frame.set_state_of_widget(state=self.connectivity_state, widget_name=name, panel_name=panel)
+            if event_type == 'right_click':
+                self.settings_edit_IO(widget_name=name)
+            else:
+                self.connectivity_state = (self.connectivity_state + 1) % 6
+                self.main_frame.set_state_of_widget(state=self.connectivity_state, widget_name=name, panel_name=panel)
         elif panel == 'control':
             if name == 'hydraulic_state_a':
                 # print(" --> ", dir(self.main_frame.vispy_plot))
@@ -72,7 +81,7 @@ class Master(master.Master):
             elif name == 'tx_selected_2':
                 self.clear_rich_text()
             elif name == 'tx_selected_3':
-                pass
+                self.add_mask_rich_text()
             elif name == 'tx_selected_4':
                 pass
         elif panel == 'page_select':
@@ -97,6 +106,7 @@ class Master(master.Master):
             else:
                 self.main_frame.vispy_plot.Hide()
                 self.main_frame.rich_text.Show()
+
             self.main_frame.Layout()
 
     #
@@ -120,8 +130,6 @@ class Master(master.Master):
         self.main_frame.vispy_plot.update_line(line_index=0, view_index=1, y_data=y0, x_data=t[:self.plt_n], color=wxcolors.ColorsCyclic.get_color())
         self.main_frame.vispy_plot.update_line(line_index=1, view_index=1, y_data=y1, x_data=t[:self.plt_n], color=wxcolors.ColorsCyclic.get_color())
 
-        self.main_frame.vispy_plot.Hide()
-
     def update_vispy_plots(self):
         # print("# update vispy buffers", time.strftime("%M:%S", time.localtime()))
         y0 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n - self.plt_n//2 * self.plt_set]
@@ -144,19 +152,21 @@ class Master(master.Master):
 
     #
     def update_rich_text(self):
-        if self.update_rich_text_bool:
-            if self.main_frame.rich_text.IsShown():
+        if self.main_frame.rich_text.IsShown():
+            if self.update_rich_text_bool:
                 # print(" updating richtext....")
                 new_txt = ""
-                n = 2
+                n = 80
                 for i in range(n):
                     data = f":".join([f"0x{x:02X}" for x in np.random.randint(0, 255, size=8, dtype=np.uint8)])
                     new_txt += f"\n Source: {0}   |   Destination: {10+i}   " \
                                f"|   {data}  |  {int(time.perf_counter_ns()//1e3)%600_000_000}  " \
-                               f"|   count = {n - i + self.rich_text_line_counter}"
+                               f"|   count = {i + self.rich_text_line_counter}"
                 self.rich_text_line_counter += n
                 print(" text_size == ", len(new_txt))
                 self.main_frame.rich_text.add_to_text(new_txt)
+            else:
+                self.main_frame.rich_text.update_widget()
 
     def reset_rich_text(self):
         self.main_frame.rich_text.clear_displayed_text()
@@ -166,3 +176,42 @@ class Master(master.Master):
 
     def add_mask_rich_text(self):
         self.main_frame.rich_text.add_mask()
+
+    #
+    def settings_edit_IO(self, widget_name):
+        print("\nCreating POPUP window:: ", widget_name)
+        setup_dict = {
+            'Ethernet': 'label',
+            'IP': str,
+            'Port': int,
+            'Uart': 'label',
+            'Uart_Baudrate': [125, 250, 375],
+            'Uart_Description': str,
+            'CAN': 'label',
+            'CAN_Baudrate': [125, 250],
+        }
+        print(" ::: ")
+        print(self.main_frame.state)
+
+        self.main_frame.create_config_popup(setup_dict, state_key_prefix='connection_config')
+
+    #
+    def vispy_mouseclick(self, event):
+        # self.main_frame.vispy_plot.legend_panel.SetTransparent(50)
+        color = self.main_frame.vispy_plot.legend_panel.GetBackgroundColour()
+        pos = self.main_frame.vispy_plot.legend_panel.GetPosition()
+        print(" color:: ", color)
+        print(" pos::", pos)
+        pos = ((pos[0] + 25)%1000, pos[1])
+
+        # color.Set(color.Red(), color.Green(), (color.Blue() + 10)%255, (color.Alpha() + 30)%255)
+        color.Set(20, 255, 25, (color.Alpha() + 30)%255)
+        self.main_frame.vispy_plot.legend_panel.SetBackgroundColour(color)
+        self.main_frame.vispy_plot.legend_panel.SetOwnBackgroundColour(color)
+        # self.main_frame.vispy_plot.legend_panel.SetWindowStyle(wx.TRANSPARENT_WINDOW) # BG_STYLE_TRANSPARENT BG_STYLE_COLOUR
+        self.main_frame.vispy_plot.legend_panel.SetTransparent(50)
+        self.main_frame.vispy_plot.legend_panel.SetPosition(pos)
+        self.main_frame.vispy_plot.legend_panel.Refresh()
+
+    def vispy_mousemove(self, event):
+        pass

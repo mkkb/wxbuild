@@ -4,6 +4,7 @@ from vispy import scene
 import numpy as np
 
 from wxbuild.components.styles_colors import ColorsCyclic
+import wxbuild.components.custom_widgets.gradientbutton as wxgb
 
 @dataclass
 class WxPanel:
@@ -90,6 +91,9 @@ class VispyPanel(wx.Panel):
 
         wx.Panel.__init__(self, parent, **kwargs)
 
+        self.legend_panel = LegendPanel(self, size=wx.Size(100, 200))
+        self.legends = []
+
         self.N = 64
         self.data_info = []
         self.data_sets = {  # One set per viewbox
@@ -106,6 +110,7 @@ class VispyPanel(wx.Panel):
         self.pause_color = (1, 0, 0, 1)
         self.show_crosshair = False
 
+        self.initialized = 0
         self.resized = False
         self.canvas = VispyCanvas(app='wx', parent=self, keys='interactive', bgcolor='black', size=kwargs['size'])
         grid = self.canvas.central_widget.add_grid(spacing=0)
@@ -113,6 +118,8 @@ class VispyPanel(wx.Panel):
         self.mouse_over_plot = 0
         self.mouse_x = 0
         self.mouse_y = 0
+        self.mousemove_callback = None
+        self.mouseclick_callback = None
         #
         self.view_boxes = []
         self.lines = {}
@@ -165,10 +172,13 @@ class VispyPanel(wx.Panel):
         pass
 
     def mouse_pressed(self, event):
-        pass
+        if hasattr(self.mouseclick_callback, '__call__'):
+            self.mouseclick_callback(event)
 
     def mouse_moved(self, event):
         self.get_mouse_view_box_coordinates(event)
+        if hasattr(self.mousemove_callback, '__call__'):
+            self.mousemove_callback(event)
 
     def key_pressed(self, event):
         if hasattr(event.key, 'name'):
@@ -285,6 +295,13 @@ class VispyPanel(wx.Panel):
         event.Skip()
 
     def on_idle(self, event):
+        # Hack to initialize vispy plot
+        if self.initialized < 100:
+            self.initialized += 1
+            if self.initialized == 100:
+                if hasattr(self.main_frame, 'master'):
+                    if hasattr(self.main_frame.master, 'post_vispy_init'):
+                        self.main_frame.master.post_vispy_init()
         if self.resized:
             self.resized = False
             self.adapt_canvas_size()
@@ -395,3 +412,28 @@ class VispyPanel(wx.Panel):
             (self.x_data_min[i], self.x_data_max[i]), (self.y_data_min[i], self.y_data_max[i]),
             margin=0.1
         )
+
+
+class LegendPanel(wx.Panel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # self.SetBackgroundColour(wx.Colour(255, 255, 10, 50))
+        # self.SetOwnBackgroundColour(wx.Colour(255, 10, 255, 50))
+        self.SetTransparent(0)
+        # self.SetWindowStyle(style=wx.TRANSPARENT_WINDOW)
+        # self.Layout()
+        print(" --> ", self.GetBackgroundColour(), self.GetBackgroundStyle())
+
+        self.main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        button = wx.Button(self, -1, size=(-1, -1), label='Vispy Knapp')
+        gd_button = wxgb.GradientButton(self, -1, size=(-1, -1), label='Vispy Gradient Knapp')
+        static_text = wx.StaticText(self, -1, label="Statisk tekst")
+
+        self.main_sizer.Add(button, 0, wx.ALL | wx.ALIGN_CENTER, 0)
+        self.main_sizer.AddSpacer(15)
+        self.main_sizer.Add(gd_button, 0, wx.ALL | wx.ALIGN_CENTER, 0)
+        self.main_sizer.AddSpacer(15)
+        self.main_sizer.Add(static_text, 0, wx.ALL | wx.ALIGN_CENTER, 0)
+
+        self.SetSizerAndFit(sizer=self.main_sizer)

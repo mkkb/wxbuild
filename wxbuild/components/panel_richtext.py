@@ -41,7 +41,7 @@ class RichtextPanel(wx.Panel):
 
         self.text_length_shape = (450, 180)
         self.max_characters = 65_000
-        self.max_character_write_per_frame = 50 * 100  # 5_000 -> 50 fps  -> 250_000
+        self.max_line_writes_per_frame = 50  # 5_000 -> 50 fps  -> 250_000
 
         self.insertion_pointers = []
         self.static_pre_text = []
@@ -50,18 +50,23 @@ class RichtextPanel(wx.Panel):
 
         self.rich_text_widgets = []
         self.write_pointers = []
+        self.read_pointers = []
 
         self.filter_masks = []
 
-    def post_init(self):
         self.text_fonts = [
             wx.Font(
                 pointSize=self.default_fontsize,
-                family=wx.FONTFAMILY_MODERN, style=wx.FONTSTYLE_ITALIC, weight=wx.FONTWEIGHT_MEDIUM,
-                underline=False, faceName="", encoding=wx.FONTENCODING_DEFAULT
+                family=wx.FONTFAMILY_MODERN,
+                style=wx.FONTSTYLE_NORMAL,
+                weight=wx.FONTWEIGHT_MEDIUM,
+                underline=False, faceName="",
+                encoding=wx.FONTENCODING_DEFAULT
             ),
         ]
+        self.sizer = wx.GridSizer(self.n_rows, self.n_cols, 10, 10)
 
+    def post_init(self):
         value = """Hello this is a long text. asdw ceqsdaceq ceqc a ceqcac ec qcasc eq c ac e.
         asdawdadasdwqdad adas dqw dasdqwd ad asd qw, das dqw dasd wqd sad sad qw dasd ,asdqw das d qwdas .
          qwd asdqw dasd qkwd asd qdsad .dwq dasd     dqwdasdqw, wd sd   d sdqsaddqcq ac cascqcqea dsdwq dsad.
@@ -109,68 +114,47 @@ class RichtextPanel(wx.Panel):
           wdw
           """
 
-        self.sizer = wx.GridSizer(self.n_rows, self.n_cols, 10, 10)
         for i in range(self.n_rows):
             for j in range(self.n_cols):
                 richtext_widget = wx.richtext.RichTextCtrl(
                     self, wx.ID_ANY, value=value, style=wx.TE_MULTILINE | wx.TE_READONLY, size=self.dataclass.size
                 )
-                self.sizer.Add(richtext_widget, 1, wx.ALL|wx.EXPAND, 5)
+                self.sizer.Add(richtext_widget, 1, wx.ALL | wx.EXPAND, 5)
 
                 self.rich_text_widgets.append(richtext_widget)
                 self.insertion_pointers.append(0)
                 self.write_pointers.append(0)
+                self.read_pointers.append(0)
                 self.dynamic_text.append([
-                    np.zeros(self.text_length_shape[0], dtype=np.ubyte),    # size
-                    np.zeros(self.text_length_shape[0], dtype=bool),        # written
-                    np.zeros(shape=self.text_length_shape, dtype=np.ubyte), # Ascii decoded text
+                    np.zeros(self.text_length_shape[0], dtype=np.ubyte),     # size
+                    np.zeros(self.text_length_shape[0], dtype=bool),         # written
+                    np.zeros(self.text_length_shape[0], dtype=np.uint32),    # format
+                    np.zeros(shape=self.text_length_shape, dtype=np.ubyte),  # Ascii decoded text
                 ])
                 self.static_pre_text.append("")
                 self.static_post_text.append("")
 
                 # format of mask =>  ['mask_name'] : [wx.Font, color: str, bold_on, italic_on, underline_on]
-                self.filter_masks.append({'default':[self.text_fonts[0], self.default_color, False, False, False]})
+                self.filter_masks.append({'default': [self.text_fonts[0], self.default_color, False, False, False]})
 
         self.SetSizerAndFit(self.sizer)
 
     def clear_displayed_text(self, widget_index=0):
-        print(" clearing displayed text:: ")
+        # print(" clearing displayed text:: ")
         self.Freeze()
         widget = self.rich_text_widgets[widget_index]
         widget.Remove(self.insertion_pointers[widget_index], widget.GetLastPosition())
+        self.dynamic_text[widget_index][1][:] = False
         self.Thaw()
 
     def clear_text(self, widget_index=0):
         print(" clearing text from buffer and display:: ")
         self.clear_displayed_text(widget_index=widget_index)
-
-    def set_text(self, text, widget_index=0):
-        print(" adding mask:: ")
+        self.dynamic_text[widget_index][0][:] = 0
 
     def add_to_text(self, text, widget_index=0):
-        # print(" adding text:: ", text)
-        format_filter = self.filter_masks[widget_index]['default']
-
-        # Add to text buffer
-        self.add_text_to_buffer(text, widget_index)
-
-        # Extract data to insert from text buffer
-
-        # Add formatting characters based on filters
-
-        # Write text to into widget
-
-        self.Freeze()
-        widget = self.rich_text_widgets[widget_index]
-        widget.SetInsertionPoint(self.insertion_pointers[widget_index])
-        widget.BeginFont(format_filter[0])
-        widget.BeginTextColour(format_filter[1])
-        widget.WriteText(text=text)
-
-        if widget.GetLastPosition() > self.max_characters:
-            widget.Remove(self.max_characters, widget.GetLastPosition())
-
-        self.Thaw()
+        self._add_text_to_buffer(text, widget_index)
+        self._write_text_to_widget_from_buffer(widget_index)
 
     def add_mask(self, widget_index=0):
         print(" adding mask:: ")
@@ -181,31 +165,107 @@ class RichtextPanel(wx.Panel):
     def set_static_post_text(self, widget_index=0):
         print(" set_static_post_text:: ")
 
+    def update_widget(self):
+        for i in range(len(self.dynamic_text)):
+            self._write_text_to_widget_from_buffer(widget_index=i)
+
     #
-    def add_text_to_buffer(self, text : str, widget_index=0):
-        # self.max_character_write_per_frame = 50 * 100 = 5_000
-        # self.text_length_shape = (450, 180)  =  81_000
+    def _add_text_to_buffer(self, text: str, widget_index=0):
         max_line_width = self.text_length_shape[1]
-        print(" max_lw", max_line_width)
-
-        # text_size_map =  self.dynamic_text[widget_index][0]
-        # bool_text_drawn_map = self.dynamic_text[widget_index][1]
-        # text_buffer = self.dynamic_text[widget_index][2]
-
         text_data = np.frombuffer(text.encode('utf-8'), np.byte)
         line_feeds = np.squeeze(np.argwhere(text_data == 10))
-        print(" line_feeds:", line_feeds)
+        # print(" line_feeds:", line_feeds)
 
         lf_pos = 0
         for i, lf_pos in enumerate(line_feeds):
             if i == 0:
                 if lf_pos > 0:
                     line_text = text_data[: lf_pos]
-                     
-                    print(" found a line: ", i, ":", line_text.size)
+                    self._add_single_text_line_to_buffer(line_text[:max_line_width], widget_index)
+                    #
+                    # print(" found a line: ", i, ":", line_text.size, lf_pos, "  (i==0, lf_pos > 0)")
             else:
                 line_text = text_data[line_feeds[i-1] + 1: lf_pos]
-                print(" found a line: ", i, ":", line_text.size)
+                self._add_single_text_line_to_buffer(line_text[:max_line_width], widget_index)
+                # print(" found a line: ", i, ":", line_text.size, lf_pos, "  (i>0")
         if lf_pos < text_data.size:
-            line_text = text_data[lf_pos + 1: ]
-            print(" found a line: ", i + 1, ":", line_text.size)
+            line_text = text_data[lf_pos + 1:]
+            self._add_single_text_line_to_buffer(line_text[:max_line_width], widget_index)
+            # print(" found a line: ", i + 1, ":", line_text.size, lf_pos, "  (lf_pos < text_data.size)")
+
+    def _add_single_text_line_to_buffer(self, text_line: np.array, widget_index=0) -> None:
+        format_int = self._filter_line_text_with_masks(text_line)
+
+        text_size_map =  self.dynamic_text[widget_index][0]
+        bool_text_drawn_map = self.dynamic_text[widget_index][1]
+        text_format_map = self.dynamic_text[widget_index][2]
+        text_buffer = self.dynamic_text[widget_index][3]  # shape=self.text_length_shape
+
+        text_size_map[0] = text_line.size
+        bool_text_drawn_map[0] = False
+        text_format_map[0] = format_int
+        text_buffer[0, :text_line.size] = text_line[:]
+        self.dynamic_text[widget_index][0] = np.roll(text_size_map, -1)
+        self.dynamic_text[widget_index][1] = np.roll(bool_text_drawn_map, -1)
+        self.dynamic_text[widget_index][2] = np.roll(text_format_map, -1)
+        self.dynamic_text[widget_index][3] = np.roll(text_buffer, -1, axis=0)
+
+    def _write_text_to_widget_from_buffer(self, widget_index=0):
+        text_size_map =  self.dynamic_text[widget_index][0][::-1]
+        bool_is_text_drawn_map = self.dynamic_text[widget_index][1][::-1]
+        text_format_map = self.dynamic_text[widget_index][2][::-1]
+        text_buffer = self.dynamic_text[widget_index][3][::-1, :]
+        n_lines_to_draw_max = self.max_line_writes_per_frame
+
+        widget = self.rich_text_widgets[widget_index]
+        i = 0
+        lines_drawn = 0
+        jumped_over_text = False
+        write_pointer = self.insertion_pointers[widget_index]
+        text_format_int = text_format_map[0]
+
+        self.Freeze()
+        widget.SetInsertionPoint(write_pointer)
+        self._set_insertion_text_format(widget, text_format_int)
+        while lines_drawn < n_lines_to_draw_max:
+            if text_size_map[i] > 0:
+                drawn = bool_is_text_drawn_map[i]
+                if not drawn:
+                    if jumped_over_text:
+                        widget.SetInsertionPoint(write_pointer)
+
+                    if text_format_int != text_format_map[i]:
+                        text_format_int = text_format_map[i]
+                        self._set_insertion_text_format(widget, text_format_int)
+                    elif jumped_over_text:
+                        self._set_insertion_text_format(widget, text_format_int)
+
+                    text = text_buffer[i, :text_size_map[i]].tobytes().decode('utf-8') + "\n"
+                    widget.WriteText(text=text)
+                    lines_drawn += 1
+                    bool_is_text_drawn_map[i] = True
+                    jumped_over_text = False
+                else:
+                    write_pointer += text_size_map[i] + 1
+                    jumped_over_text = True
+
+            i += 1
+            if i == text_size_map.size:
+                break
+
+        self.dynamic_text[widget_index][1][:] = bool_is_text_drawn_map[::-1]
+        if widget.GetLastPosition() > self.max_characters:
+            widget.Remove(self.max_characters, widget.GetLastPosition())
+
+        widget.EndFont()
+        widget.EndTextColour()
+
+        self.Thaw()
+
+    def _set_insertion_text_format(self, widget, text_format_int: int) -> None:
+        if text_format_int == 0:
+            widget.BeginFont(self.text_fonts[0])
+            widget.BeginTextColour(wx.BLACK)
+
+    def _filter_line_text_with_masks(self, text_line: np.array) -> int:
+        return 0

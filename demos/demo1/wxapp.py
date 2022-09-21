@@ -92,6 +92,7 @@ connection_panel = WxComponents.panel(
                 state_map='connections',
                 style_theme=WxComponents.styles.black,
                 mouse_click_function=True,
+                mouse_rightclick_function=True,
                 end_space=4,
                 size=(40, medium_btn_height),
             ) for label in connectivity_buttons
@@ -391,18 +392,22 @@ vispy_panel = WxComponents.vispypanel(
     parent='main_frame',
     name='vispy_plot',
     shape=(1, 2),
-    size=(300, 300),
+    size=(50, 50),
 )
 richtext_panel = WxComponents.richtext(
     parent='main_frame',
     name='rich_text',
     shape=(2, 1),
-    size=(300, 600),
+    size=(10, 10),
+    sizer_flags=wx.EXPAND,
+    sizer_proportion=1,
 )
 control_panel_all_widgets = WxComponents.panel(
     parent='main_frame',
     name='control_examples',
     sizer_direction='horizontal',
+    sizer_border=0,
+    sizer_flags=wx.EXPAND | wx.BOTTOM,
     content=(
         WxComponents.spacer(15),
         WxComponents.widget(
