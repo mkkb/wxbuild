@@ -320,9 +320,18 @@ class MainFrame(wx.Frame):
     def _set_mainframe_icons_and_etc(self):
         self.SetTitle(self.config.title)
 
+        print( __name__ , os.getcwd() )
+        icon_path = ""
         if os.path.exists(self.config.icon_path):
+            icon_path = self.config.icon_path
+        elif os.path.exists(self.config.asset_folder + os.sep + self.config.icon_path):
+            icon_path = self.config.asset_folder + os.sep + self.config.icon_path
+        elif os.path.exists(os.getcwd() + self.config.asset_folder + os.sep + self.config.icon_path):
+            icon_path = os.getcwd() + self.config.asset_folder + os.sep + self.config.icon_path
+
+        if len(icon_path) > 1:
             icon = wx.Icon()
-            icon.CopyFromBitmap(wx.Bitmap(self.config.icon_path, wx.BITMAP_TYPE_ANY))
+            icon.CopyFromBitmap(wx.Bitmap(icon_path, wx.BITMAP_TYPE_ANY))
             self.SetIcon(icon)
 
     #

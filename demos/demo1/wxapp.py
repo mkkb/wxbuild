@@ -7,6 +7,7 @@ def main():
     app = wx.App()
 
     app_config = AppConfiguration(title='WoodPecker', extra_folder='WellGuard', asset_folder="/assets")
+    app_config.icon_path = r"C:\KRISTIAN\Python Scripts\GitLab_repos\WellGuard_AS\wg_gui_fpga_wcan\assets\logo_32x32.png"
     app_config.monitor_resources = True
 
     frm = MainFrame(app_config=app_config)
