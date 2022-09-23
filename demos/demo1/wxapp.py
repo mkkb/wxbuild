@@ -502,6 +502,44 @@ control_panel_all_widgets = WxComponents.panel(
     )
 )
 
+# config_setup_connections_popup_window = WxComponents.popupwindow(
+#     icon_path='icon_cog_wheel_black.png',
+#     title='Connection Settings',
+#     parent='main_frame',
+#     name='config_setup_connections',
+#     sizer_direction='vertical',
+#     sizer_border=0,
+#     sizer_flags=wx.EXPAND | wx.BOTTOM,
+#     content=(
+#         WxComponents.widget(
+#             name="Ethernet",
+#             label="Static text",
+#             widget_type=WxComponents.widgets.static_text,
+#             style_theme=WxComponents.styles.blue,
+#             mouse_enter_function=True,
+#             mouse_leave_function=True,
+#         ),
+#         WxComponents.widget(
+#             widget_type=WxComponents.widgets.input_text,
+#             name='input_text',
+#             label='Input text',
+#             style_theme=WxComponents.styles.green,
+#             value='',
+#             size=(120, -1),
+#         ),
+#     )
+    # setup_dict = {
+    #             'Title': 'Connection Settings',
+    #             'Ethernet': 'label',
+    #             'IP': str,
+    #             'Port': int,
+    #             'Uart': 'label',
+    #             'Uart_Baudrate': [125, 250, 375],
+    #             'Uart_Description': str,
+    #             'CAN': 'label',
+    #             'CAN_Baudrate': [125, 250],
+    #         }
+# )
 
 if __name__ == '__main__':
     main()

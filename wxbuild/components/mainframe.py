@@ -12,7 +12,7 @@ import numpy as np
 import wx
 import psutil
 
-import wxbuild.components.widget as wg
+import wxbuild.components.widget as wxw
 import wxbuild.components.panel_with_state as wxp
 import wxbuild.components.panel_vispy as wxv
 import wxbuild.components.panel_richtext as wxr
@@ -50,13 +50,28 @@ class AppConfiguration:
 
 
 @dataclass
+class PopupWindow:
+    icon_path: str = ""
+    title: str = ""
+    window_open: bool = False
+    parent: str = 'main_frame'
+    sizer_flags: int = wx.EXPAND | wx.ALL
+    sizer_proportion: float = 0
+    sizer_border: int = 0
+    sizer_direction: str = 'vertical'
+    content: tuple = ()
+    background_color: tuple = wx.WHITE
+
+
+@dataclass
 class WxComponents:
+    popupwindow = PopupWindow
     panel = wxp.WxPanel
-    widget = wg.Widget
-    spacer = wxp.Spacer
+    widget = wxw.Widget
+    spacer = wxw.Spacer
     vispypanel = wxv.WxPanel
     richtext = wxr.WxPanel
-    widgets = wg.Widgets
+    widgets = wxw.Widgets
     styles = Styles
 
 
@@ -68,6 +83,8 @@ class MainFrame(wx.Frame):
             self.config = AppConfiguration
         super().__init__(None, *args, **kwargs)
 
+        indx = os.getcwd().split(os.sep).index('wxbuild') + 1
+        self.asset_folder = f"{os.sep}".join(os.getcwd().split(os.sep)[:indx]) + os.sep + 'assets'
         self._set_mainframe_icons_and_etc()
         self.screen_w, self.screen_h = wx.DisplaySize()
 
@@ -185,6 +202,10 @@ class MainFrame(wx.Frame):
     def get_state_value(self, state_key):
         if state_key in self.state:
             return self.state[state_key]
+
+    def get_state_value_by_widget(self, panel_name, widget_name):
+        state_key = f'state__{panel_name}__{widget_name}'
+        return self.get_state_value(state_key)
 
     #
     # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers
@@ -319,8 +340,6 @@ class MainFrame(wx.Frame):
 
     def _set_mainframe_icons_and_etc(self):
         self.SetTitle(self.config.title)
-
-        print( __name__ , os.getcwd() )
         icon_path = ""
         if os.path.exists(self.config.icon_path):
             icon_path = self.config.icon_path
@@ -448,13 +467,13 @@ class MainFrame(wx.Frame):
             widget.wx_widget.set_style_of_widget(widget, color)
 
     # Extra window calls - popups, etc..
-    def create_config_popup(self, setup_dict, state_key_prefix='connection_config', default_values=None):
+    def create_config_popup(self, setup_dict, default_values=None):
         if not self.config_window_open:
             self.config_window_open = True
-            for key, item in setup_dict.items():
+            for key, item in setup_dict['content'].items():
                 # print(" -> ", type(item), item, isinstance(item, str), isinstance(item, int), isinstance(item, classmethod), item == str, item == int, item == float)
                 if not isinstance(item, str):
-                    state_key = f"{state_key_prefix.lower()}_{key.lower()}"
+                    state_key = f"{setup_dict['state_key_prefix'].lower()}_{key.lower()}"
                     print(" key:: ", key, item, state_key)
                 else:
                     pass
@@ -469,8 +488,16 @@ class MainFrame(wx.Frame):
             # dlg.Destroy()
             #
 
-            title = 'Connection Setup'
-            self.config_window = PopupWindow(title=title, parent=wx.GetTopLevelParent(self))
+            if 'title' in setup_dict:
+                title = setup_dict['title']
+            else:
+                title = 'Configurations'
+
+            self.config_window = PopupWindowConfiguration(
+                title=title, parent=wx.GetTopLevelParent(self),
+                content=setup_dict['content'], panel_name=setup_dict['state_key_prefix'],
+                callback_func=setup_dict['callback_func']
+            )
             mouse_pos = wx.GetMousePosition()
             self.config_window.Move(mouse_pos[0] + 20, mouse_pos[1] + 20)
         else:
@@ -637,25 +664,146 @@ class MouseDoubleClick:
 
 
 #...
-class PopupWindow(wx.Frame):
+class PopupWindowConfiguration(wx.Frame):
     """
     Class used for creating frames other than the main one
     """
 
-    def __init__(self, title, parent=None):
+    def __init__(self, title, parent=None, content=None, panel_name='popup_window', callback_func=None):
         self.parent = parent
+        self.main_frame = parent
+        self.panel_name = panel_name
+        self.callback_func = callback_func
         wx.Frame.__init__(self, parent=parent, title=title)
 
+        icon_path = f"{self.parent.asset_folder}{os.sep}icon_cog_wheel_black.png"
+        icon = wx.Icon()
+        icon.CopyFromBitmap(wx.Bitmap(icon_path, wx.BITMAP_TYPE_ANY))
+        self.SetIcon(icon)
+
+        self.SetBackgroundColour(wx.Colour("#ffffff"))
         self.Bind(wx.EVT_CLOSE, self._on_close)
         self.Bind(wx.EVT_KILL_FOCUS, self._on_lose_focus)
 
+        self.content = content
+        self._populate_content()
+
         self.Show()
+
+    def _populate_content(self):
+        print("\nPOPULATING CONFIG WINDOW:::")
+
+        medium_btn_height = 27
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        staticboxsizer = None
+
+        if isinstance(self.content, dict):
+            for key, item in self.content.items():
+                # print(" -> ", type(item), item, isinstance(item, str), isinstance(item, int), isinstance(item, classmethod), item == str, item == int, item == float)
+                if not isinstance(item, str):
+                    print("  key:: ", key, item)
+
+                    wxtype = None
+                    widget_dataclass = WxComponents.widget
+                    if item == str:
+                        wxtype = WxComponents.widgets.input_text
+                    elif item == int:
+                        wxtype = WxComponents.widgets.input_int
+                    elif item == float:
+                        wxtype = WxComponents.widgets.input_float
+                    elif isinstance(item, tuple):
+                        widget_dataclass = WxComponents.widget(
+                            widget_type=WxComponents.widgets.choice,
+                            label=key.replace('_', ' '),
+                            end_space=2,
+                            size=(-1, medium_btn_height),
+                            choices = tuple((str(x) for x in item)),
+                            name=key.lower()
+                        )
+
+                    if wxtype is not None:
+                        widget_dataclass = WxComponents.widget(
+                            widget_type=wxtype,
+                            label=key.replace('_', ' '),
+                            end_space=2,
+                            size=(-1, medium_btn_height),
+                            name=key.lower()
+                        )
+
+                    if isinstance(staticboxsizer, wx.StaticBoxSizer):
+                        if isinstance(widget_dataclass, WxComponents.widget):
+
+
+                            widget = wxw.WxWidget(widget=widget_dataclass, parent=self)
+                            staticboxsizer.Add(widget.wx_object, 1, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 0)
+                            staticboxsizer.AddSpacer(10)
+                else:
+                    if item == 'label':
+                        if isinstance(staticboxsizer, wx.StaticBoxSizer):
+                            sizer.Add(staticboxsizer, 0, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 5)
+                            # sizer.AddSpacer(15)
+                        staticboxsizer = wx.StaticBoxSizer(
+                            parent=self, orient=wx.VERTICAL, label=key.replace('_', ''),
+                        )
+                        staticbox = staticboxsizer.GetStaticBox()
+                        staticbox.Enable(enable=False)
+
+                        # content.append(WxComponents.spacer(10))
+                        # content.append(
+                        #     WxComponents.widget(
+                        #         widget_type=WxComponents.widgets.static_text,
+                        #         label=key,
+                        #         end_space=2,
+                        #         size=(-1, medium_btn_height),
+                        #     )
+                        # )
+                    print("  key:: ", key, item, ' ----- string')
+
+            if isinstance(staticboxsizer, wx.StaticBoxSizer):
+                sizer.Add(staticboxsizer, 1, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 20)
+
+        # (
+        #         WxComponents.spacer(10),
+        #         WxComponents.widget(
+        #             widget_type=WxComponents.widgets.static_text,
+        #             label='I dcdc [mA]:',
+        #             end_space=2,
+        #             size=(-1, medium_btn_height),
+        #         ),
+        #         WxComponents.widget(
+        #             widget_type=WxComponents.widgets.GradientButton,
+        #             name='i_dcdc',
+        #             label='',
+        #             value=0,
+        #             style_theme=state_style,
+        #             mouse_click_function=True,
+        #             end_space=4,
+        #             size=(status_widths, medium_btn_height),
+        #         ),
+        #         WxComponents.spacer(10),
+        #         WxComponents.widget(
+        #             widget_type=WxComponents.widgets.static_text,
+        #             label='MPB temp [°C]:',
+        #             end_space=2,
+        #             size=(-1, medium_btn_height),
+        #         ),
+
+        if self.callback_func is not None:
+            default_values_button = wx.Button(self, label='Default Values')
+            default_values_button.Bind(
+                event=wx.EVT_BUTTON,
+                handler=self.callback_func,
+            )
+            sizer.Add(default_values_button, 0, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 5)
+
+        self.SetSizerAndFit(sizer=sizer)
 
     def _on_close(self, event):
         self.parent._config_popup_closed()
         event.Skip()
 
     def _on_lose_focus(self, event):
-        self.parent._config_popup_closed()
-        self.Destroy()
-        event.Skip()
+        # self.parent._config_popup_closed()
+        # self.Destroy()
+        # event.Skip()
+        pass

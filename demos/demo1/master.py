@@ -181,37 +181,62 @@ class Master(master.Master):
     def settings_edit_IO(self, widget_name):
         print("\nCreating POPUP window:: ", widget_name)
         setup_dict = {
-            'Ethernet': 'label',
-            'IP': str,
-            'Port': int,
-            'Uart': 'label',
-            'Uart_Baudrate': [125, 250, 375],
-            'Uart_Description': str,
-            'CAN': 'label',
-            'CAN_Baudrate': [125, 250],
+            'title': 'Connection Settings',
+            'state_key_prefix': 'connection_configuration',
+            'callback_func': self.settings_edit_set_default_values,
+            'content': {
+                'Ethernet': 'label',
+                'IP': str,
+                'Port': int,
+                'Uart': 'label',
+                'Uart_Baudrate': (125, 250, 375),
+                'Uart_Description': str,
+                'CAN': 'label',
+                'CAN_Baudrate': (125, 250),
+            },
         }
         print(" ::: ")
         print(self.main_frame.state)
 
-        self.main_frame.create_config_popup(setup_dict, state_key_prefix='connection_config')
+        self.main_frame.create_config_popup(setup_dict)
+
+    def settings_edit_set_default_values(self, event):
+        print(" SETTING DEFAULT VALUES ")
+        prefix_names = 'connection_configuration'
+        default_values = {
+            'IP': '192.168.40.10',
+            'Port': '10',
+            'Uart_Baudrate': '375',
+            'Uart_Description': 'x35812d',
+            'CAN_Baudrate': '250',
+        }
+        for key, el in default_values.items():
+            widget = self.main_frame.get_widget_by_names(panel_name=prefix_names, widget_name=key.lower())
+            current_val = widget.wx_widget.get_value()
+
+            print(" widget::", widget, 'current_val:', current_val, ' default_val:', el, " ||| ", widget.wx_widget.get_value())
+            widget.wx_widget.set_value(el)
+            self.main_frame.set_state_value(state_key=widget.wx_widget.state_key, value=widget.wx_widget.get_value())
+
 
     #
     def vispy_mouseclick(self, event):
         # self.main_frame.vispy_plot.legend_panel.SetTransparent(50)
-        color = self.main_frame.vispy_plot.legend_panel.GetBackgroundColour()
-        pos = self.main_frame.vispy_plot.legend_panel.GetPosition()
-        print(" color:: ", color)
-        print(" pos::", pos)
-        pos = ((pos[0] + 25)%1000, pos[1])
-
-        # color.Set(color.Red(), color.Green(), (color.Blue() + 10)%255, (color.Alpha() + 30)%255)
-        color.Set(20, 255, 25, (color.Alpha() + 30)%255)
-        self.main_frame.vispy_plot.legend_panel.SetBackgroundColour(color)
-        self.main_frame.vispy_plot.legend_panel.SetOwnBackgroundColour(color)
-        # self.main_frame.vispy_plot.legend_panel.SetWindowStyle(wx.TRANSPARENT_WINDOW) # BG_STYLE_TRANSPARENT BG_STYLE_COLOUR
-        self.main_frame.vispy_plot.legend_panel.SetTransparent(50)
-        self.main_frame.vispy_plot.legend_panel.SetPosition(pos)
-        self.main_frame.vispy_plot.legend_panel.Refresh()
+        # color = self.main_frame.vispy_plot.legend_panel.GetBackgroundColour()
+        # pos = self.main_frame.vispy_plot.legend_panel.GetPosition()
+        # print(" color:: ", color)
+        # print(" pos::", pos)
+        # pos = ((pos[0] + 25)%1000, pos[1])
+        #
+        # # color.Set(color.Red(), color.Green(), (color.Blue() + 10)%255, (color.Alpha() + 30)%255)
+        # color.Set(20, 255, 25, (color.Alpha() + 30)%255)
+        # self.main_frame.vispy_plot.legend_panel.SetBackgroundColour(color)
+        # self.main_frame.vispy_plot.legend_panel.SetOwnBackgroundColour(color)
+        # # self.main_frame.vispy_plot.legend_panel.SetWindowStyle(wx.TRANSPARENT_WINDOW) # BG_STYLE_TRANSPARENT BG_STYLE_COLOUR
+        # self.main_frame.vispy_plot.legend_panel.SetTransparent(50)
+        # self.main_frame.vispy_plot.legend_panel.SetPosition(pos)
+        # self.main_frame.vispy_plot.legend_panel.Refresh()
+        pass
 
     def vispy_mousemove(self, event):
         pass

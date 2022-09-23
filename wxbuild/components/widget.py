@@ -13,6 +13,7 @@ class WxWidget:
         self.parent = kwargs.pop('parent')
         self.input_element = None
 
+        self.state_key = f'state__{self.parent.panel_name}__{self.widget.name}'
         self.widget.set_text_scheme(self.widget.style_theme)
         self.widget.set_color_scheme(self.widget.style_theme)
 
@@ -182,10 +183,8 @@ class WxWidget:
                 self.widget.value = self.input_element.GetString(self.input_element.GetCurrentSelection())
 
     def update_value_from_state(self):
-        state_key = f'state__{self.parent.panel_name}' \
-                    f'__{self.widget.name}'
-        if state_key in self.parent.main_frame.state:
-            self.set_value(self.parent.main_frame.state[state_key])
+        if self.state_key in self.parent.main_frame.state:
+            self.set_value(self.parent.main_frame.state[self.state_key])
 
     def set_color_text(self):  # TODO
         pass
@@ -202,8 +201,7 @@ class WxWidget:
     def add_attributes_to_event_object(self, event_object):
         setattr(event_object, 'wx_widget', self)
         if not isinstance(event_object, wx.Sizer):
-            widget_name = f'state__{self.parent.panel_name}__{self.widget.name}'
-            setattr(self.parent.main_frame, widget_name, event_object)
+            setattr(self.parent.main_frame, self.state_key, event_object)
 
     def add_label_in_front_of_input_field(self, wx_object, widget):
         sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -270,6 +268,8 @@ class Widget:
     end_space: int = 0
     size: tuple[int, int] = (-1, -1)
     font_size: int = -1
+    #
+
 
     def set_color_scheme(self, name: str):  # TODO
         self.color_scheme = wxcolor.ColorScheme(name=name)
@@ -291,3 +291,24 @@ class Widgets:
     static_text: str = 'static_text'
     choice: str = 'choice'
     spacer: str = 'spacer'
+
+
+@dataclass(repr=False, eq=False, frozen=True)
+class Spacer:
+    space: int = 5
+
+
+def populate_sizer(parent, content, direction: str = 'horizontal') -> object:
+    sizer_direction = (wx.HORIZONTAL, wx.VERTICAL)[direction != 'horizontal']
+    sizer = wx.BoxSizer(sizer_direction)
+
+    for i, element in enumerate(content):
+        if isinstance(element, Spacer):
+            sizer.AddSpacer(element.space)
+        else:
+            wx_element = WxWidget(widget=element, parent=parent)
+            sizer.Add(wx_element.wx_object, 0, wx.ALL | wx.ALIGN_CENTER, 0)
+            if element.end_space > 0:
+                sizer.AddSpacer(element.end_space)
+
+    return sizer

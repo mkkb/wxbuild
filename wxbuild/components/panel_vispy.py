@@ -91,8 +91,8 @@ class VispyPanel(wx.Panel):
 
         wx.Panel.__init__(self, parent, **kwargs)
 
-        self.legend_panel = LegendPanel(self, size=wx.Size(100, 200))
-        self.legends = []
+        # self.legend_panel = LegendPanel(self, size=wx.Size(100, 200))
+        # self.legends = []
 
         self.N = 64
         self.data_info = []
