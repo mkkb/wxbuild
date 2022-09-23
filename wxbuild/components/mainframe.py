@@ -83,8 +83,8 @@ class MainFrame(wx.Frame):
             self.config = AppConfiguration
         super().__init__(None, *args, **kwargs)
 
-        indx = os.getcwd().split(os.sep).index('wxbuild') + 1
-        self.asset_folder = f"{os.sep}".join(os.getcwd().split(os.sep)[:indx]) + os.sep + 'assets'
+        folder_path_indx = __file__.split(os.sep).index('wxbuild') + 1
+        self.asset_folder = f"{os.sep}".join(os.getcwd().split(os.sep)[:folder_path_indx]) + os.sep + 'assets'
         self._set_mainframe_icons_and_etc()
         self.screen_w, self.screen_h = wx.DisplaySize()
 
