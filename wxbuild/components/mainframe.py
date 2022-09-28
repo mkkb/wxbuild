@@ -94,7 +94,7 @@ class MainFrame(wx.Frame):
         self.state = {}
         self.master = master.Master()
         self.load_state()
-        self.thread_workers = []
+        self.thread_worker_table = []
         self.idle_functions = []
 
         self.double_click_status = MouseDoubleClick()
@@ -130,7 +130,9 @@ class MainFrame(wx.Frame):
 
         wx_id = wx.NewIdRef()
         self.init_thread_worker(
-            worker_id=wx_id, callback_func=self.final_exit, run_func=self.kill_all_workers, args=wx_id, run_once=True
+            worker_id=wx_id, callback_func=self.final_exit,
+            run_func=self.kill_all_workers, kwargs=wx_id,
+            run_once=True
         )
 
     def on_repaint(self, event):
@@ -143,7 +145,7 @@ class MainFrame(wx.Frame):
             self.resized = False
             self.Layout()
 
-        for worker in self.thread_workers:
+        for worker in self.thread_worker_table:
             if not worker.running:
                 self.delete_thread_worker(worker.wx_id)
 
@@ -209,12 +211,15 @@ class MainFrame(wx.Frame):
 
     #
     # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers
-    def init_thread_worker(self, run_func, worker_id=-1, callback_func=None, run_once=True, args=None):
+    def init_thread_worker(self, run_func, worker_id=-1, callback_func=None, run_once=True, kwargs=None):
         print("\nAppending worker:")
-        worker_index = self.get_thread_worker_by_id(worker_id)
+        worker_table_index = self.get_thread_worker_table_index_by_id(worker_id)
 
         # Create a new thread
-        if worker_index is None:
+        if worker_table_index is None:
+            if worker_id == -1:
+                worker_id = wx.NewId()
+
             if callback_func is not None:
                 print(" - connecting worker to callback function:", callback_func)
                 self.Connect(-1, -1, worker_id, callback_func)
@@ -222,33 +227,35 @@ class MainFrame(wx.Frame):
             else:
                 call_event = False
             thread_worker = WorkerThread(
-                func=run_func, parent=self, wx_id=worker_id, run_once=run_once, args=args, call_event=call_event
+                func=run_func, parent=self, wx_id=worker_id, run_once=run_once, kwargs=kwargs, call_event=call_event
             )
 
             print(" - thread worker: ", thread_worker, worker_id)
-            self.thread_workers.append(thread_worker)
+            self.thread_worker_table.append(thread_worker)
         else:
-            print(" - worker already exists...")
-            worker = self.thread_workers[worker_index]
+            print(" - worker already exists...", self.thread_worker_table)
+            worker = self.thread_worker_table[worker_table_index]
             if worker.is_stopped():
-                print('Worker is stopped, restart it?\n')
+                print('  -- Worker is finished and dead...')
+            else:
+                print('  -- Worker is actually running...')
 
     def delete_thread_worker(self, worker_id):
-        worker_index = self.get_thread_worker_by_id(worker_id)
-        if worker_index is not None:
-            self.thread_workers[worker_index].kill()
+        worker_table_index = self.get_thread_worker_table_index_by_id(worker_id)
+        if worker_table_index is not None:
+            self.thread_worker_table[worker_table_index].kill()
 
-    def get_thread_worker_by_id(self, worker_id: int) -> int | None:
-        worker_index = None
-        for i, worker in enumerate(self.thread_workers):
+    def get_thread_worker_table_index_by_id(self, worker_id: int) -> int | None:
+        worker_table_index = None
+        for i, worker in enumerate(self.thread_worker_table):
             if worker_id == worker.get_wx_id():
-                worker_index = i
-        return worker_index
+                worker_table_index = i
+        return worker_table_index
 
     def kill_all_workers(self, worker_id_self: int) -> None:
-        worker_ids = [worker.get_wx_id() for worker in self.thread_workers if worker.get_wx_id() != worker_id_self]
+        worker_ids = [worker.get_wx_id() for worker in self.thread_worker_table if worker.get_wx_id() != worker_id_self]
         # print("Ongoing workers: ")
-        # for i, worker in enumerate(self.thread_workers):
+        # for i, worker in enumerate(self.thread_worker_table):
         #     print(" -", i, worker.wx_id, worker.running, worker._is_stopped)
         for w_id in worker_ids:
             self.delete_thread_worker(w_id)
@@ -519,15 +526,16 @@ class WorkerThreadResultEvent(wx.PyEvent):
 
 
 class WorkerThread(Thread):
-    def __init__(self, func, parent, wx_id, run_once=True, sleep_time=0.2, args=None, call_event=False):
+    def __init__(self, func, parent, wx_id, run_once=True, sleep_time=0.2, kwargs=None, call_event=False):
         Thread.__init__(self)
         self.func = func
         self.parent = parent
         self.run_once = run_once
         self.wx_id = wx_id
         self.sleep_time = sleep_time
-        self.args = args
+        self.kwargs = kwargs
         self.call_event = call_event
+        self.event_class = WorkerThreadResultEvent
 
         self.daemon = True
         self.running = True
@@ -535,8 +543,11 @@ class WorkerThread(Thread):
 
     def run(self):
         if self.run_once:
-            if self.args is not None:
-                response = self.func(self.args)
+            if isinstance(self.kwargs, dict):
+                self.kwargs.update({'thread_instance':self})
+                response = self.func(**self.kwargs)
+            elif self.kwargs is not None:
+                response = self.func(self.kwargs)
             else:
                 response = self.func()
 
@@ -546,8 +557,11 @@ class WorkerThread(Thread):
 
         else:
             while self.running:
-                if self.args is not None:
-                    response = self.func(self.args)
+                if isinstance(self.kwargs, dict):
+                    self.kwargs.update({'thread_instance':self})
+                    response = self.func(**self.kwargs)
+                elif self.kwargs is not None:
+                    response = self.func(self.kwargs)
                 else:
                     response = self.func()
                 if self.call_event:
@@ -561,7 +575,7 @@ class WorkerThread(Thread):
         self.running = False
 
     def is_stopped(self) -> bool:
-        return not self.isAlive()
+        return not self.is_alive()
 
 
 #
@@ -603,7 +617,7 @@ def monitor_app_resources__init(frame) -> None:
 
     frame.init_thread_worker(
         worker_id=wx.NewIdRef(), run_func=monitor_app_resources__loop_backend,
-        args=frame, callback_func=None, run_once=False
+        kwargs=frame, callback_func=None, run_once=False
     )
 
 

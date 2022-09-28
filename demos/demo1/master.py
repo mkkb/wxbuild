@@ -3,6 +3,8 @@ import wx
 import wxbuild.master_abstract as master
 import wxbuild.components.styles_colors as wxcolors
 
+import demos.demo1.threaded_function_test as thread_func
+
 import numpy as np
 import time
 
@@ -32,6 +34,8 @@ class Master(master.Master):
 
         self.rich_text_line_counter = 0
         self.plt_set = 0
+
+        self.test_thread_indx = wx.NewIdRef()
 
     def post_init(self):
         print("\n-- POST Initiation of Master --\n")
@@ -83,7 +87,7 @@ class Master(master.Master):
             elif name == 'tx_selected_3':
                 self.add_mask_rich_text()
             elif name == 'tx_selected_4':
-                pass
+                self.start_the_thread_monitor()
         elif panel == 'page_select':
             self.page_view_selected = name
             print(" selected page::", self.page_view_selected)
@@ -109,6 +113,22 @@ class Master(master.Master):
 
             self.main_frame.Layout()
 
+    #
+    def start_the_thread_monitor(self):
+        print('GUI TRYING TO START A THREAD')
+        self.main_frame.init_thread_worker(
+            worker_id=self.test_thread_indx,
+            run_func=thread_func.threaded_monitor_function,
+            run_once=True,
+            callback_func=self.handle_thread_response,
+            kwargs={'func_info_str': '... this is test thread ...'}
+        )
+
+    def handle_thread_response(self, *args, **kwargs):
+        event = args[0]
+        print('thread_response::: ', args, kwargs)
+        print(' workers:', self.main_frame.thread_worker_table)
+        print(" event.data::", event.data)
     #
     def init_vispy_plots(self):
         t = np.arange(2**17) / 250e3
