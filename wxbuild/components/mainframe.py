@@ -390,6 +390,7 @@ class MainFrame(wx.Frame):
                 event_type = 'window_leave'
 
         self.master.handle_user_event(event_type, widget_name, panel_name)
+        event.Skip()
 
     def input_state_edit(self, event):
         if event.EventType == wx.EVT_CHAR.typeId:

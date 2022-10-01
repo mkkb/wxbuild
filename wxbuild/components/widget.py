@@ -58,6 +58,11 @@ class WxWidget:
                 wx.EVT_CHAR,
                 handler=self.parent.main_frame.input_state_edit,
             )
+            if self.widget.value_edit_function:
+                self.input_element.Bind(
+                    wx.EVT_CHAR,
+                    handler=self.parent.main_frame.handle_user_event,
+                )
 
         else:
             if self.widget.widget_type == 'GradientButton':
@@ -223,7 +228,7 @@ class WxWidget:
     def set_style_of_widget(self, widget, style=None):
         if style is None:
             style = self.widget.style_theme
-        print(" -----> ", self.widget.name, self.widget.color_scheme, self.widget.text_scheme, self.widget.style_theme, type(widget))
+        # print(" -----> ", self.widget.name, self.widget.color_scheme, self.widget.text_scheme, self.widget.style_theme, type(widget))
         if isinstance(widget, wxgb.GradientButton):
             color_arr = wxcolor.get_colors_from_style(style)
             # color_arr = wxcolor.get_colors_from_style(self.widget.style_theme)

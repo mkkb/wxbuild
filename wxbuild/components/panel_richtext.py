@@ -173,11 +173,12 @@ class RichtextPanel(wx.Panel):
     def _add_text_to_buffer(self, text: str, widget_index=0):
         max_line_width = self.text_length_shape[1]
         text_data = np.frombuffer(text.encode('utf-8'), np.byte)
-        line_feeds = np.squeeze(np.argwhere(text_data == 10))
-        # print(" line_feeds:", line_feeds)
+        line_feed_args = np.squeeze(np.argwhere(text_data == 10))
+        if line_feed_args.ndim == 0:
+            line_feed_args = np.array((line_feed_args,), dtype=np.ubyte)
 
         lf_pos = 0
-        for i, lf_pos in enumerate(line_feeds):
+        for i, lf_pos in enumerate(line_feed_args):
             if i == 0:
                 if lf_pos > 0:
                     line_text = text_data[: lf_pos]
@@ -185,7 +186,7 @@ class RichtextPanel(wx.Panel):
                     #
                     # print(" found a line: ", i, ":", line_text.size, lf_pos, "  (i==0, lf_pos > 0)")
             else:
-                line_text = text_data[line_feeds[i-1] + 1: lf_pos]
+                line_text = text_data[line_feed_args[i-1] + 1: lf_pos]
                 self._add_single_text_line_to_buffer(line_text[:max_line_width], widget_index)
                 # print(" found a line: ", i, ":", line_text.size, lf_pos, "  (i>0")
         if lf_pos < text_data.size:
