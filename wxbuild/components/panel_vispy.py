@@ -25,9 +25,28 @@ class WxPanel:
 
 
 @dataclass
+class MousePointerInfo:
+    label: str = ""
+    x_unit: str = ""
+    y_unit: str = ""
+    print_notation: str = "0.1f"
+    stats_mean: float = 0.0
+    stats_std: float = 0.0
+    stats_max: float = 0.0
+    stats_min: float = 0.0
+    stats_local_mean: float = 0.0
+    stats_local_std: float = 0.0
+    stats_local_max: float = 0.0
+    stats_local_min: float = 0.0
+    point_x: float = 0.0
+    point_y: float = 0.0
+
+
+@dataclass
 class VispyLine:
     n_size: int = 32
     n_size_init: int = n_size
+    return_nan_data: bool = False
     n_lines: int = 1
     line_index: int = 0
     view_index: int = 0
@@ -35,6 +54,7 @@ class VispyLine:
     x_unit: str = ""
     y_data: np.ndarray = np.arange(n_size, dtype=np.float32)
     y_unit: str = ""
+    print_notation: str = "0.1f"
     vispy_line_start_index: int = n_size * line_index + line_index
     vispy_line_end_index: int = vispy_line_start_index + n_size + 1
     color = PlotColors.get_color_by_index(0)
@@ -44,6 +64,7 @@ class VispyLine:
     split_view_col_index: int = 0
     split_view_row_index: int = 0
     show: bool = True
+    initialized: bool = False
     normalize: bool = False
     stats_marker_x: float = 0.0
     stats_marker_y: float = 0.0
@@ -52,11 +73,16 @@ class VispyLine:
     stats_max: float = 0.0
     stats_min: float = 0.0
     stats_local_width: int = 10
-    local_x_value: float = 16.0
+    local_x_value: int = 16
     stats_local_mean: float = 0.0
     stats_local_std: float = 0.0
     stats_local_max: float = 0.0
     stats_local_min: float = 0.0
+    #
+    normalize_offset_y: float = 0.0
+    normalize_scaler_y: float = 0.0
+    normalize_offset_x: float = 0.0
+    normalize_scaler_x: float = 0.0
 
     def set_line_size(self, n_size):
         self.n_size = n_size
@@ -67,18 +93,29 @@ class VispyLine:
         self.vispy_line_end_index = self.vispy_line_start_index + n_size # + 1
 
     def get_data(self):
-        pos = np.zeros(shape=(self.n_size, 2), dtype=np.float32)
+        if self.return_nan_data:
+            pos = np.zeros(shape=(self.n_size_init, 2), dtype=np.float32)
+            pos[self.n_size:, :] = np.nan
+        else:
+            pos = np.zeros(shape=(self.n_size, 2), dtype=np.float32)
 
         if self.normalize:
             pos[: self.n_size, 0] = self.get_x_data_split_view()[: self.n_size]
             pos[: self.n_size, 1] = self.get_y_data_split_view()[: self.n_size]
+            # print(" getting normalized data: ", self.label, " | ", self.split_view_row_index, self.split_view_col_index)
+            # print("  -> x : ", np.amin(self.get_x_data_split_view()[: self.n_size]), np.amax(self.get_x_data_split_view()[: self.n_size]) , self.n_size,
+            #       "  || ", np.amin(self.get_x_data()[: self.n_size]), np.amax(self.get_x_data()[: self.n_size]))
+            # print("  -> y : ", np.amin(self.get_y_data_split_view()[: self.n_size]), np.amax(self.get_y_data_split_view()[: self.n_size]) , self.n_size,
+            #       "  || ", np.amin(self.get_y_data()[: self.n_size]), np.amax(self.get_y_data()[: self.n_size]))
         else:
             pos[: self.n_size, 0] = self.x_data[:self.n_size]
             pos[: self.n_size, 1] = self.y_data[:self.n_size]
 
-        if self.n_size_init > self.n_size:
-            pos[self.n_size: self.n_size_init, :] = np.nan
-        return pos
+        if self.return_nan_data:
+            self.return_nan_data = False
+            return pos, self.vispy_line_start_index, self.vispy_line_start_index + self.n_size_init
+        else:
+            return pos, self.vispy_line_start_index, self.vispy_line_end_index
 
     def get_y_data(self):
         y = self.y_data[:]
@@ -101,46 +138,52 @@ class VispyLine:
         return color_arr
 
     def get_x_data_split_view(self):
-        # Normalize
-        # Move to split window coords
-        normalized_data = self.x_data - np.amin(self.x_data)
-        normalized_data = normalized_data / np.amax(normalized_data) * 0.95 + 0.025 + self.split_view_row_index
+        normalized_data = self.x_data - self.normalize_offset_x
+        normalized_data = normalized_data * self.normalize_scaler_x + 0.025 + self.split_view_row_index
         return normalized_data
 
     def get_y_data_split_view(self):
-        normalized_data = self.y_data - np.amin(self.y_data)
-        normalized_data = normalized_data / np.amax(normalized_data) * 0.95 + 0.025 + self.split_view_col_index
+        normalized_data = self.y_data - self.normalize_offset_y
+        normalized_data = normalized_data * self.normalize_scaler_y + 0.025 + self.split_view_col_index
         return normalized_data
 
-    def set_vispy_line_indices(self, start_index: int, stop_index: int):
-        self.vispy_line_start_index = start_index
-        self.vispy_line_end_index = stop_index
-
-    def get_vispy_line_indices(self):
-        return self.vispy_line_start_index, self.vispy_line_end_index
-
     def set_data(self, x: np.ndarray, y: np.ndarray):
-        self.n_size = x.size
-        n_min = min(self.y_data.size, self.n_size)
+        self.initialized = True
+        if x.size != self.n_size:
+            self.n_size = x.size
+            self._reset_vispy_line_indices()
+            self._reset_normalization_parameters()
         #
-        self.x_data[:n_min] = x[:n_min]
-        self.y_data[:n_min] = y[:n_min]
+        self.x_data[:self.n_size] = x[:self.n_size]
+        self.y_data[:self.n_size] = y[:self.n_size]
+        #
         self._calculate_stats()
         self._calculate_local_stats_from_x()
 
     def set_y_data(self, y: np.ndarray):
-        self.n_size = y.size
-        n_min = min(self.y_data.size, self.n_size)
-        #
-        self.y_data[:n_min] = y[:n_min]
+        self.initialized = True
+        if y.size != self.n_size:
+            self.n_size = y.size
+            self._reset_vispy_line_indices()
+            self._reset_normalization_parameters()
+        else:
+            self.normalize_offset_y = np.amin(y[:self.n_size])
+            self.normalize_scaler_y = 1 / np.amax(y[:self.n_size] - self.normalize_offset_y) * 0.95
+        self.y_data[:self.n_size] = y[:self.n_size]
         self._calculate_stats()
         self._calculate_local_stats_from_x()
 
     def set_x_data(self, x: np.ndarray):
-        self.n_size = x.size
-        n_min = min(self.y_data.size, self.n_size)
+        self.initialized = True
+        if x.size != self.n_size:
+            self.n_size = x.size
+            self._reset_vispy_line_indices()
+        else:
+            self.normalize_offset_x = np.amin(x[:self.n_size])
+            self.normalize_scaler_x = 1 / np.amax(x[:self.n_size] - self.normalize_offset_x) * 0.95
+        # print(" recalculating normalization numbers:", self.normalize_offset_x, self.normalize_scaler_x, " | ", self.label, self.split_view_row_index, self.split_view_col_index)
         #
-        self.x_data[:n_min] = x[:n_min]
+        self.x_data[:self.n_size] = x[:self.n_size]
         self._calculate_stats()
         self._calculate_local_stats_from_x()
 
@@ -190,6 +233,10 @@ class VispyLine:
     def get_local_stats(self):
         return self.stats_local_mean, self.stats_local_std, self.stats_local_max, self.stats_local_min
 
+    def get_exact_point_stats(self):
+        x_arg = self.local_x_value
+        return self.x_data[x_arg], self.y_data[x_arg]
+
     def _calculate_stats(self):
         self.stats_mean = self.y_data.mean()
         self.stats_std = self.y_data.std()
@@ -197,9 +244,20 @@ class VispyLine:
         self.stats_min = np.min(self.y_data)
 
     def set_local_x_value_from_normalized_x(self, x_normalized):
-        # self.local_x_value = x_value
-        # self._calculate_local_stats_from_x()
-        pass
+        x = x_normalized - 0.025 - self.split_view_row_index
+        x_arg = max(min(int(x / 0.95 * self.n_size), self.n_size-1), 0)
+        self.local_x_value = x_arg
+        self._calculate_local_stats_from_x()
+        # print("\nset_local_x_value_from_normalized_x: ", self.label, self.split_view_row_index, self.normalize_scaler_x)
+        # print("   - ", x_normalized, x,  x_arg, "  |  ", self.n_size)
+        # print("  ")
+        # if self.normalize_scaler_x > 0:
+        #     x /= self.normalize_scaler_x
+        #     x += self.normalize_offset_x
+        #
+        #     self.local_x_value = x
+        #     self._calculate_local_stats_from_x()
+        #     pass
 
     def set_local_x_value(self, x_value):
         self.local_x_value = x_value
@@ -210,15 +268,19 @@ class VispyLine:
         self._calculate_local_stats_from_x()
 
     def _calculate_local_stats_from_x(self):
-        x_arg = np.argmin(np.abs(self.x_data - self.local_x_value))
+        # x_arg = np.argmin(np.abs(self.x_data - self.local_x_value))
+        x_arg = self.local_x_value
         w = self.stats_local_width
         index_min = max(0, x_arg - w//2)
-        index_max = min(self.x_data.size, x_arg + w // 2)
+        index_max = min(self.n_size, x_arg + w // 2)
 
-        self.stats_mean = self.y_data[index_min: index_max].mean()
-        self.stats_std = self.y_data[index_min: index_max].std()
-        self.stats_max = np.max(self.y_data[index_min: index_max])
-        self.stats_min = np.min(self.y_data[index_min: index_max])
+        # print("\n local x_value::: ", self.label, x_arg, w)
+        # print("  -- ", index_min, index_max)
+        if index_max - index_min > 1:
+            self.stats_local_mean = self.y_data[index_min: index_max].mean()
+            self.stats_local_std = self.y_data[index_min: index_max].std()
+            self.stats_local_max = np.max(self.y_data[index_min: index_max])
+            self.stats_local_min = np.min(self.y_data[index_min: index_max])
 
     def _calculate_local_stats_from_y(self, y):
         y_arg = np.argmin(np.abs(self.y_data - y))
@@ -226,10 +288,22 @@ class VispyLine:
         index_min = max(0, y_arg - w // 2)
         index_max = min(self.y_data.size, y_arg + w // 2)
 
-        self.stats_mean = self.y_data[index_min: index_max].mean()
-        self.stats_std = self.y_data[index_min: index_max].std()
-        self.stats_max = np.max(self.y_data[index_min: index_max])
-        self.stats_min = np.min(self.y_data[index_min: index_max])
+        if index_max - index_min > 1:
+            self.stats_local_mean = self.y_data[index_min: index_max].mean()
+            self.stats_local_std = self.y_data[index_min: index_max].std()
+            self.stats_local_max = np.max(self.y_data[index_min: index_max])
+            self.stats_local_min = np.min(self.y_data[index_min: index_max])
+
+    def _reset_vispy_line_indices(self):
+        self.vispy_line_start_index = self.n_size_init * self.line_index + self.line_index
+        self.vispy_line_end_index = self.vispy_line_start_index + self.n_size # + 1
+        self.return_nan_data = True
+
+    def _reset_normalization_parameters(self):
+        self.normalize_offset_x = np.amin(self.x_data[:self.n_size])
+        self.normalize_scaler_x = 1 / np.amax(self.x_data[:self.n_size] - self.normalize_offset_x) * 0.95
+        self.normalize_offset_y = np.amin(self.y_data[:self.n_size])
+        self.normalize_scaler_y = 1 / np.amax(self.y_data[:self.n_size] - self.normalize_offset_y) * 0.95
 
 
 class VispyCanvas(scene.SceneCanvas):
@@ -308,7 +382,7 @@ class VispyPanel(wx.Panel):
         self.show_tooltip_panel = False
         self.legend_panels = []
         self.tooltip_panel = ToolTip(self, size=wx.Size(100, 200), pos=(20, 20))
-        self.tooltip_panel.SetBackgroundColour(wx.Colour("#aabbaa"))
+        # self.tooltip_panel.SetBackgroundColour(wx.Colour("#aabbaa"))
         self.tooltip_panel.Hide()
         self.tooltip_timer = None
         for i in range(self.plot_rows * self.plot_cols):
@@ -329,6 +403,7 @@ class VispyPanel(wx.Panel):
         self.minimum_refresh_rate_ms = 100
         self.time_of_last_refresh = self.get_time_now_ms()
         self.pending_line_updates = []
+        self.pointer_info__line_stats = MousePointerInfo()
 
         self.play = True
         self.play_color = (1, 0, 0, 1)
@@ -402,7 +477,7 @@ class VispyPanel(wx.Panel):
     def post_init(self):
         if self.show_tooltip_panel:
             from wxbuild.components.mainframe import Timer
-            self.tooltip_timer = Timer(timeout_limit_ms=5)
+            self.tooltip_timer = Timer(timeout_limit_ms=10)
 
     #
     def get_time_now_ms(self):
@@ -489,13 +564,37 @@ class VispyPanel(wx.Panel):
         view_box_mouse_y = normalized_y * y_camera_rect_size + y_camera_rect_pos
 
         # # Get closest point on line to mouse
-        for l_indx, line in self.data_sets[plot_index].items():
-            # print(" is this a good line?", l_indx, line.label, " | ", line.split_view_row_index, int(view_box_mouse_x), " | ", line.split_view_col_index, int(view_box_mouse_y))
-            # print("  -- ", view_box_mouse_x, int(view_box_mouse_x), view_box_mouse_y, int(view_box_mouse_y), " || ", line.split_view_row_index, line.split_view_col_index)
-            if line.split_view_row_index == int(view_box_mouse_x):
-                if line.split_view_col_index == int(view_box_mouse_y):
-                    print(" Good line:: ", line.label, "  -  ", line.get)
+        if plot_index in self.data_sets:
+            for l_indx, line in self.data_sets[plot_index].items():
+                if line.initialized:
+                    # print(" is this a good line?", l_indx, line.label, " | ", line.split_view_row_index, int(view_box_mouse_x), " | ", line.split_view_col_index, int(view_box_mouse_y))
+                    # print("  -- ", view_box_mouse_x, int(view_box_mouse_x), view_box_mouse_y, int(view_box_mouse_y), " || ", line.split_view_row_index, line.split_view_col_index)
+                    if line.split_view_row_index == int(view_box_mouse_x):
+                        if line.split_view_col_index == int(view_box_mouse_y):
+                            # print(" Good line?? ", line.label, line.split_view_row_index, line.split_view_col_index, " || ", int(view_box_mouse_x), int(view_box_mouse_y))
+                            line.set_local_x_value_from_normalized_x(view_box_mouse_x)
 
+                            line_stats = line.get_stats()
+                            line_local_stats = line.get_local_stats()
+                            line_point_stats = line.get_exact_point_stats()
+
+                            self.pointer_info__line_stats.stats_mean = line_stats[0]
+                            self.pointer_info__line_stats.stats_std = line_stats[1]
+                            self.pointer_info__line_stats.stats_max = line_stats[2]
+                            self.pointer_info__line_stats.stats_min = line_stats[3]
+                            self.pointer_info__line_stats.stats_local_mean = line_local_stats[0]
+                            self.pointer_info__line_stats.stats_local_std = line_local_stats[1]
+                            self.pointer_info__line_stats.stats_local_max = line_local_stats[2]
+                            self.pointer_info__line_stats.stats_local_min = line_local_stats[3]
+                            self.pointer_info__line_stats.point_x = line_point_stats[0]
+                            self.pointer_info__line_stats.point_y = line_point_stats[1]
+                            self.pointer_info__line_stats.label = line.label
+                            self.pointer_info__line_stats.x_unit = line.x_unit
+                            self.pointer_info__line_stats.y_unit = line.y_unit
+                            self.pointer_info__line_stats.print_notation = line.print_notation
+
+                            if self.show_tooltip_panel:
+                                self.tooltip_panel.update_info(self.pointer_info__line_stats)
         # line_pos = self.lines[plot_index].pos
         # non_nans_mask = ~np.isnan(line_pos[:, 1]) & ~np.isnan(line_pos[:, 0])
         # x_ = line_pos[non_nans_mask, 0]
@@ -761,8 +860,7 @@ class VispyPanel(wx.Panel):
                 line_index = view_line_val % 1000
                 line = self.data_sets[view_index][line_index]
 
-                pos_this_line = line.get_data()
-                start_indx, end_indx = line.get_vispy_line_indices()
+                pos_this_line, start_indx, end_indx = line.get_data()
                 # print(" --- ", view_index, line_index, " || ", pos_this_line.shape, color_this_line.shape, start_indx, end_indx)
                 pos_all[start_indx: end_indx, :] = pos_this_line[:, :]
                 views_updated.append(view_index)
@@ -817,19 +915,32 @@ class VispyPanel(wx.Panel):
                 if self.tooltip_timer.has_timed_out():
                     self.mouse_moved = False
                     self.tooltip_timer.reset_timer()
-                    print(" updating widget..")
-                    print(" - ", self.mouse_x, self.mouse_y)
-                    print(" - ", self.mouse_x_absolute, self.mouse_y_absolute)
-                    print(" - ", self.GetSize())
-                    print(" - ", self.tooltip_panel.GetPosition())
-                    print("   - view under mouse: ", self.mouse_over_plot)
-                    self.tooltip_panel.SetPosition((self.mouse_x_absolute + 15, self.mouse_y_absolute - 10))
+                    self.tooltip_timer.reset_long_timer()
+                    # print(" updating widget..")
+                    # print(" - ", self.mouse_x, self.mouse_y)
+                    # print(" - ", self.mouse_x_absolute, self.mouse_y_absolute)
+                    # print(" - ", self.GetSize())
+                    # print(" - ", self.tooltip_panel.GetPosition())
+                    # print("   - view under mouse: ", self.mouse_over_plot)
+                    self.tooltip_panel.SetPosition((self.mouse_x_absolute + 15, self.mouse_y_absolute - 20))
+                    self.tooltip_panel.update_widget()
+                    self.tooltip_panel.Show()
                     # TODO only show tooltip when mouse is close to an graph
                     # TODO tooltip should show: plot-label, mouse_x_vs_plot_y, local high_peak, local low_peak,
 
-                    self.tooltip_panel.Show()
-                    for wx_ in self.legend_panels:
-                        wx_.Show()
+
+                    # if not self.tooltip_panel.IsShown():
+                    #     self.tooltip_panel.Show()
+                    #     if self.show_legend_panel:
+                    #         for wx_ in self.legend_panels:
+                    #             wx_.Show()
+                # else:
+                #     print(" tooltip is showned but not timeout")
+            else:
+                if self.tooltip_panel.IsShown():
+                    # print(" tooltip is showned but no mouse actions.... ", time.perf_counter_ns() - self.tooltip_timer.long_time_last_event, self.tooltip_timer.timeout_long_limit_ms * 1e6)
+                    if self.tooltip_timer.has_time_out_long():
+                        self.tooltip_panel.Hide()
 
     def update_legend_panel(self):
         # TODO move legend panel to opposite side of the mouse
@@ -882,17 +993,59 @@ class LegendPanel(wx.Panel):
 
     def _label_toggle_callback(self, event):
         pass
-    
 
 
 class ToolTip(wx.Panel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.SetBackgroundColour((255, 255, 255))
 
         # self.SetTransparent(0)
 
-        gd_button = wxgb.GradientButton(self, -1, size=(-1, -1), label='Tooltip')
-        self.main_sizer.Add(gd_button, 0, wx.ALL | wx.ALIGN_CENTER, 0)
+        self.label_txt = ""
+        self.mouse_p_txt = ""
+        self.local_stats = ""
+        self.line_stats = ""
+
+        self.gd_button = wx.StaticText(self, -1, label="", size=(250, -1))
+        self.mouse_point_txt = wx.StaticText(self, -1, label="", size=(-1, -1))
+        self.local_stats_txt = wx.StaticText(self, -1, label="", size=(-1, -1))
+        self.stats_txt = wx.StaticText(self, -1, label="", size=(-1, -1))
+
+        self.main_sizer.Add(self.gd_button, 1, wx.LEFT | wx.TOP | wx.ALIGN_CENTER, 10)
+        self.main_sizer.AddSpacer(15)
+        self.main_sizer.Add(self.mouse_point_txt, 1, wx.LEFT | wx.ALIGN_LEFT, 5)
+        self.main_sizer.AddSpacer(25)
+        self.main_sizer.Add(self.local_stats_txt, 1, wx.LEFT | wx.ALIGN_LEFT, 5)
+        self.main_sizer.AddSpacer(15)
+        self.main_sizer.Add(self.stats_txt, 1, wx.LEFT | wx.ALIGN_LEFT, 5)
 
         self.SetSizerAndFit(sizer=self.main_sizer)
+
+    def update_widget(self):
+        self.gd_button.SetLabel(self.label_txt)
+        self.mouse_point_txt.SetLabel(self.mouse_p_txt)
+        self.local_stats_txt.SetLabel(self.local_stats)
+        self.stats_txt.SetLabel(self.line_stats)
+
+        # self.Update()
+        # self.Layout()
+
+    def update_info(self, info_data: MousePointerInfo):
+
+        if self.IsShown():
+            # print(" updating info data:: ", info_data)
+            # print(" - ", info_data.label)
+
+            self.label_txt = f"{info_data.label}"
+            self.mouse_p_txt = f"x = {info_data.point_x:{info_data.print_notation}} [{info_data.x_unit}]  ,  "
+            self.mouse_p_txt += f"y = {info_data.point_y:{info_data.print_notation}} [{info_data.y_unit}]"
+
+            self.local_stats = f"Local max = {info_data.stats_local_max:{info_data.print_notation}}  ,  "
+            self.local_stats += f"min = {info_data.stats_local_min:{info_data.print_notation}} [{info_data.y_unit}]  ,  "
+            self.local_stats += f"mean = {info_data.stats_local_mean:{info_data.print_notation}} [{info_data.y_unit}]"
+
+            self.line_stats = f"Line max = {info_data.stats_max:{info_data.print_notation}}  ,  "
+            self.line_stats += f"min = {info_data.stats_min:{info_data.print_notation}} [{info_data.y_unit}]  ,  "
+            self.line_stats += f"mean = {info_data.stats_mean:{info_data.print_notation}} [{info_data.y_unit}]"

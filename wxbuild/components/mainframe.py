@@ -681,12 +681,19 @@ class MouseDoubleClick:
 @dataclass()
 class Timer:
     timeout: bool = False
+    timeout_long: bool = False
     time_last_event: int = 0
+    long_time_last_event: int = 0
     timeout_limit_ms: int = 100
+    timeout_long_limit_ms: int = 1000
 
     def reset_timer(self):
         self.time_last_event = time.perf_counter_ns()
         self.timeout = False
+
+    def reset_long_timer(self):
+        self.long_time_last_event = time.perf_counter_ns()
+        self.timeout_long = False
 
     def has_timed_out(self):
         if time.perf_counter_ns() - self.time_last_event > self.timeout_limit_ms * 1e6:
@@ -696,6 +703,13 @@ class Timer:
 
         return self.timeout
 
+    def has_time_out_long(self):
+        if time.perf_counter_ns() - self.long_time_last_event > self.timeout_long_limit_ms * 1e6:
+            self.timeout_long = True
+        else:
+            self.timeout_long = False
+
+        return self.timeout_long
 
 #...
 class PopupWindowConfiguration(wx.Frame):
