@@ -39,7 +39,7 @@ class RichtextPanel(wx.Panel):
         self.char_replacement = 35  # hashtag/comment sign --> #
         self.char_valid_ascii_range = (9, 126)
 
-        self.text_length_shape = (450, 180)
+        self.text_length_shape = (450, 180)  #
         self.max_characters = 65_000
         self.max_line_writes_per_frame = 50  # 5_000 -> 50 fps  -> 250_000
 
@@ -164,6 +164,11 @@ class RichtextPanel(wx.Panel):
 
     def set_static_post_text(self, widget_index=0):
         print(" set_static_post_text:: ")
+
+    def set_configuration(self, max_line_writes_per_frame=50, max_characters=50_000, text_length_shape=(450, 180)):
+        self.max_line_writes_per_frame = max_line_writes_per_frame
+        self.text_length_shape = text_length_shape
+        self.max_characters = max_characters
 
     def update_widget(self):
         for i in range(len(self.dynamic_text)):

@@ -34,6 +34,7 @@ class Master(master.Master):
 
         self.rich_text_line_counter = 0
         self.plt_set = 0
+        self.plot_update_counter = 0
 
         self.test_thread_indx = wx.NewIdRef()
 
@@ -58,7 +59,13 @@ class Master(master.Master):
         self.main_frame.vispy_plot.mouseclick_callback = self.vispy_mouseclick
         self.main_frame.vispy_plot.mousemove_callback = self.vispy_mousemove
 
+        # self.vispy_tooltip_window = wx.Panel(self.main_frame, id=wx.ID_ANY, pos=(20, 20), size=(200, 200),
+        #                                 style=wx.TAB_TRAVERSAL, name="vispy_tooltip")
+        # self.vispy_tooltip_window.SetBackgroundColour(wx.Colour("#ccDDcc"))
+
         self.main_frame.rich_text.SetMinSize(wx.Size(10, 10))
+        self.main_frame.rich_text.set_configuration(max_characters=30_000, max_line_writes_per_frame=50)
+
         self.main_frame.Layout()
 
     def handle_user_event(self, event_type, name, panel):
@@ -133,30 +140,54 @@ class Master(master.Master):
     def init_vispy_plots(self):
         t = np.arange(2**17) / 250e3
         self.plt_data = 0.02 * np.sin(2*np.pi*25e3*t) + 0.3 * np.sin(2*np.pi*4e3*t)
+        self.plt_data_2 = 1.7 * np.sin(2 * np.pi * 400 * t) + 1
+
         self.plt_pointer = 0
-        self.plt_n = 1024
+        self.plt_n = 102400
         #
         self.main_frame.vispy_plot.add_vertical_line(view_index=0, pos=0.5)
         self.main_frame.vispy_plot.add_vertical_line(view_index=1, pos=0.5)
-        self.main_frame.vispy_plot.add_line_set(view_index=0, n_lines=2, n_per_line=self.plt_n)
-        self.main_frame.vispy_plot.add_line_set(view_index=1, n_lines=2, n_per_line=self.plt_n)
+        self.main_frame.vispy_plot.add_line_set(view_index=0, n_lines=4, n_per_line=self.plt_n)
+        self.main_frame.vispy_plot.add_line_set(view_index=1, n_lines=4, n_per_line=self.plt_n)
 
         y0 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n]
         y1 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n] + 2
+        y2 = self.plt_data_2[:self.plt_n]
         # self.main_frame.vispy_plot.update_line(y_data=y0, line_index=0)
         # self.main_frame.vispy_plot.update_line(y_data=y1, line_index=1)
-        self.main_frame.vispy_plot.update_line(line_index=0, view_index=0, y_data=y0, x_data=t[:self.plt_n], color=wxcolors.ColorsCyclic.get_color())
-        self.main_frame.vispy_plot.update_line(line_index=1, view_index=0, y_data=y1, x_data=t[:self.plt_n], color=wxcolors.ColorsCyclic.get_color())
-        self.main_frame.vispy_plot.update_line(line_index=0, view_index=1, y_data=y0, x_data=t[:self.plt_n], color=wxcolors.ColorsCyclic.get_color())
-        self.main_frame.vispy_plot.update_line(line_index=1, view_index=1, y_data=y1, x_data=t[:self.plt_n], color=wxcolors.ColorsCyclic.get_color())
+        self.main_frame.vispy_plot.update_line(
+            line_index=0, view_index=0, y_data=y0, x_data=t[:self.plt_n], label="Channel 0", color='auto')
+        self.main_frame.vispy_plot.update_line(
+            line_index=1, view_index=0, y_data=y1, x_data=t[:self.plt_n], label="Channel 1", color='auto')
+        self.main_frame.vispy_plot.update_line(
+            line_index=2, view_index=0, y_data=y2, x_data=t[:self.plt_n], label="Channel 2", color='auto')
+        self.main_frame.vispy_plot.update_line(
+            line_index=0, view_index=1, y_data=y0, x_data=t[:self.plt_n], label="Channel 0", color='auto')
+        self.main_frame.vispy_plot.update_line(
+            line_index=1, view_index=1, y_data=y1, x_data=t[:self.plt_n], label="Channel 1", color='auto')
+
+        self.main_frame.vispy_plot.show_legend_panel = False
+        self.main_frame.vispy_plot.show_tooltip_panel = False
+        self.main_frame.vispy_plot.post_init()
 
     def update_vispy_plots(self):
-        # print("# update vispy buffers", time.strftime("%M:%S", time.localtime()))
+        self.plot_update_counter += 1
+        if self.plot_update_counter % 1 == 0:
+            time_now = time.time()
+            ms = int(time_now*1000)%1000
+            tss = time.strftime("%M:%S", time.localtime())
+            print(f"# update vispy buffers ::  {tss}.{ms:<03d}")
+
         y0 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n - self.plt_n//2 * self.plt_set]
         y1 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n - self.plt_n//2 * self.plt_set] + 2
-        self.main_frame.vispy_plot.update_line(y_data=y0, line_index=0, view_index=self.plt_set)
-        self.main_frame.vispy_plot.update_line(y_data=y1, line_index=1, view_index=self.plt_set)
+        y2 = np.roll(self.plt_data_2, - self.plt_pointer//3)[:self.plt_n]
+        for i in range(40):
+            self.main_frame.vispy_plot.update_line(y_data=y0, line_index=0, view_index=self.plt_set)
+            self.main_frame.vispy_plot.update_line(y_data=y1, line_index=1, view_index=self.plt_set)
+            self.main_frame.vispy_plot.update_line(y_data=y2, line_index=2, view_index=0)
         self.plt_pointer = self.plt_pointer + 50
+
+        self.main_frame.vispy_plot.refresh_lines()
 
     def update_vispy_buffers(self):
         # y0 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n - self.plt_n//2 * self.plt_set]
@@ -259,4 +290,15 @@ class Master(master.Master):
         pass
 
     def vispy_mousemove(self, event):
+        # print(" event", dir(event))
+        # print(" ev_pos", event.pos, self.main_frame.vispy_plot.mouse_x, self.main_frame.vispy_plot.mouse_y)
+        # print("   -", self.main_frame.vispy_plot.GetPosition())
+        # print("   -", self.main_frame.vispy_plot.GetSize())
+        #
+        # self.main_frame.vispy_plot.legend_panel.SetPosition(
+        #     (event.pos[0] + 10, event.pos[1] - 10)
+        # )
+
+        # self.vispy_tooltip_window.Hide()
+        # self.vispy_tooltip_window.Show()
         pass
