@@ -138,33 +138,73 @@ class Master(master.Master):
         print(" event.data::", event.data)
     #
     def init_vispy_plots(self):
-        t = np.arange(2**17) / 250e3
+        self.plt_n = 2**17
+        t = np.arange(self.plt_n) / 250e3
         self.plt_data = 0.02 * np.sin(2*np.pi*25e3*t) + 0.3 * np.sin(2*np.pi*4e3*t)
         self.plt_data_2 = 1.7 * np.sin(2 * np.pi * 400 * t) + 1
 
-        self.plt_pointer = 0
-        self.plt_n = 102400
+        # self.plt_pointer = 0
         #
-        self.main_frame.vispy_plot.add_vertical_line(view_index=0, pos=0.5)
-        self.main_frame.vispy_plot.add_vertical_line(view_index=1, pos=0.5)
-        self.main_frame.vispy_plot.add_line_set(view_index=0, n_lines=4, n_per_line=self.plt_n)
-        self.main_frame.vispy_plot.add_line_set(view_index=1, n_lines=4, n_per_line=self.plt_n)
+        self.main_frame.vispy_plot.add_vertical_line(view_index=0, pos=1.0)
+        self.main_frame.vispy_plot.add_vertical_line(view_index=0, pos=2.0)
+        self.main_frame.vispy_plot.add_vertical_line(view_index=0, pos=3.0)
+        self.main_frame.vispy_plot.add_horizontal_line(view_index=0, pos=1.0)
+        self.main_frame.vispy_plot.add_horizontal_line(view_index=0, pos=2.0)
+        self.main_frame.vispy_plot.add_horizontal_line(view_index=0, pos=3.0)
+        self.main_frame.vispy_plot.add_vertical_line(view_index=1, pos=1.0)
+        self.main_frame.vispy_plot.add_vertical_line(view_index=1, pos=2.0)
+        self.main_frame.vispy_plot.add_vertical_line(view_index=1, pos=3.0)
+        self.main_frame.vispy_plot.add_horizontal_line(view_index=1, pos=1.0)
+        self.main_frame.vispy_plot.add_horizontal_line(view_index=1, pos=2.0)
+        self.main_frame.vispy_plot.add_horizontal_line(view_index=1, pos=3.0)
 
-        y0 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n]
-        y1 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n] + 2
-        y2 = self.plt_data_2[:self.plt_n]
-        # self.main_frame.vispy_plot.update_line(y_data=y0, line_index=0)
-        # self.main_frame.vispy_plot.update_line(y_data=y1, line_index=1)
-        self.main_frame.vispy_plot.update_line_split_view(
-            line_index=0, view_index=0, y_data=y0, x_data=t[:self.plt_n], label="Channel 0", color='auto', split_view=(0,0))
-        self.main_frame.vispy_plot.update_line_split_view(
-            line_index=1, view_index=0, y_data=y1, x_data=t[:self.plt_n], label="Channel 1", color='auto', split_view=(1,0))
-        self.main_frame.vispy_plot.update_line_split_view(
-            line_index=2, view_index=0, y_data=y2, x_data=t[:self.plt_n], label="Channel 2", color='auto', split_view=(0,1))
-        self.main_frame.vispy_plot.update_line(
-            line_index=0, view_index=1, y_data=y0, x_data=t[:self.plt_n], label="Channel 00", color='auto')
-        self.main_frame.vispy_plot.update_line(
-            line_index=1, view_index=1, y_data=y1, x_data=t[:self.plt_n], label="Channel 11", color='auto')
+        # self.main_frame.vispy_plot.add_line_set(view_index=0, n_lines=4, n_per_line=self.plt_n)
+        # self.main_frame.vispy_plot.add_line_set(view_index=1, n_lines=4, n_per_line=self.plt_n)
+        #
+        # y0 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n]
+        # y1 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n] + 2
+        # y2 = self.plt_data_2[:self.plt_n]
+        # # self.main_frame.vispy_plot.update_line(y_data=y0, line_index=0)
+        # # self.main_frame.vispy_plot.update_line(y_data=y1, line_index=1)
+        # self.main_frame.vispy_plot.update_line_split_view(
+        #     line_index=0, view_index=0, y_data=y0, x_data=t[:self.plt_n], label="Channel 0", color='auto', split_view=(0,0))
+        # self.main_frame.vispy_plot.update_line_split_view(
+        #     line_index=1, view_index=0, y_data=y1, x_data=t[:self.plt_n], label="Channel 1", color='auto', split_view=(1,0))
+        # self.main_frame.vispy_plot.update_line_split_view(
+        #     line_index=2, view_index=0, y_data=y2, x_data=t[:self.plt_n], label="Channel 2", color='auto', split_view=(0,1))
+        # self.main_frame.vispy_plot.update_line(
+        #     line_index=0, view_index=1, y_data=y0, x_data=t[:self.plt_n], label="Channel 00", color='auto')
+        # self.main_frame.vispy_plot.update_line(
+        #     line_index=1, view_index=1, y_data=y1, x_data=t[:self.plt_n], label="Channel 11", color='auto')
+
+        d = np.zeros(shape=(self.plt_n, 2), dtype=np.float32)
+        d[:, 1] = self.plt_data[:]
+        d[:, 0] = t
+        self.main_frame.vispy_plot.add_line_set(view_index=0, n_lines=7, n_per_line=self.plt_n)
+        self.main_frame.vispy_plot.add_line_set(view_index=1, n_lines=7, n_per_line=self.plt_n)
+        mapper = [
+            {'data': d, 'i_l':0, 'i_v':0, 'i_c':0, 'y_unit':"mA", 'x_unit':'ms', 'split_view':(0,0), 'label': 'current_data'},
+            {'data': d, 'i_l':1, 'i_v':0, 'i_c':4, 'y_unit':"bar", 'x_unit':'ms', 'split_view':(1,0), 'label': 'pressure_data'},
+            {'data': d, 'i_l':2, 'i_v':0, 'i_c':1, 'y_unit':"RPM", 'x_unit':'ms', 'split_view':(0,1), 'label': 'pump_rpm'},
+            {'data': d, 'i_l':3, 'i_v':0, 'i_c':2, 'y_unit':"mA", 'x_unit':'ms', 'split_view':(1,1), 'label': 'pump_current'},
+            {'data': d, 'i_l':0, 'i_v':1, 'i_c':1, 'y_unit':"RPM", 'x_unit':'ms', 'split_view':(0,1), 'label': 'rotor_rpm'},
+            {'data': d, 'i_l':1, 'i_v':1, 'i_c':2, 'y_unit':"mA", 'x_unit':'ms', 'split_view':(1,1), 'label': 'rotor_current'},
+            {'data': d, 'i_l':2, 'i_v':1, 'i_c':3, 'y_unit':"rad", 'x_unit':'ms', 'split_view':(2,1), 'label': 'rotor_position'},
+        ]
+        for i, map_dict in enumerate(mapper):
+            c = wxcolors.ColorsCyclic.get_color_by_index(map_dict['i_c'])
+            self.main_frame.vispy_plot.update_line_split_view(
+                view_index = map_dict['i_v'],
+                line_index = map_dict['i_l'],
+                y_data = map_dict['data'][:, 1],
+                x_data = map_dict['data'][:, 0],
+                label = map_dict['label'],
+                color = c,
+                split_view = map_dict['split_view'],
+            )
+            line = self.main_frame.vispy_plot.data_sets[map_dict['i_v']][map_dict['i_l']]
+            line.x_unit = map_dict['x_unit']
+            line.y_unit = map_dict['y_unit']
 
         self.main_frame.vispy_plot.show_legend_panel = False
         self.main_frame.vispy_plot.show_tooltip_panel = True
@@ -180,16 +220,40 @@ class Master(master.Master):
 
         # print(" self.plt_set:: ", self.plt_set)
 
-        y0 = np.roll(self.plt_data, - self.plt_pointer//2)[:self.plt_n - int(self.plt_n*0.5) * self.plt_set]
-        y1 = np.roll(self.plt_data, - self.plt_pointer//6)[:self.plt_n - int(self.plt_n*0.3) * self.plt_set] + 2
-        y2 = np.roll(self.plt_data_2, - self.plt_pointer//3)[:self.plt_n - int(self.plt_n*0.9) * self.plt_set]
+        # y0 = np.roll(self.plt_data, - self.plt_pointer//2)[:self.plt_n - int(self.plt_n*0.5) * self.plt_set]
+        # y1 = np.roll(self.plt_data, - self.plt_pointer//6)[:self.plt_n - int(self.plt_n*0.3) * self.plt_set] + 2
+        # y2 = np.roll(self.plt_data_2, - self.plt_pointer//3)[:self.plt_n - int(self.plt_n*0.9) * self.plt_set]
+        #
+        # # if self.plt_set == 0:
+        # for i in range(1):
+        #     self.main_frame.vispy_plot.update_line_split_view(y_data=y0, line_index=0, view_index=0)
+        #     self.main_frame.vispy_plot.update_line_split_view(y_data=y1, line_index=1, view_index=0)
+        #     self.main_frame.vispy_plot.update_line_split_view(y_data=y2, line_index=2, view_index=0)
+        # self.plt_pointer = self.plt_pointer + 50
 
-        # if self.plt_set == 0:
-        for i in range(1):
-            self.main_frame.vispy_plot.update_line_split_view(y_data=y0, line_index=0, view_index=0)
-            self.main_frame.vispy_plot.update_line_split_view(y_data=y1, line_index=1, view_index=0)
-            self.main_frame.vispy_plot.update_line_split_view(y_data=y2, line_index=2, view_index=0)
-        self.plt_pointer = self.plt_pointer + 50
+        t = np.arange(self.plt_n) / 250e3
+        # self.plt_data = 0.02 * np.sin(2*np.pi*25e3*t) + 0.3 * np.sin(2*np.pi*4e3*t)
+        # self.plt_pointer = 0
+        # self.plt_n = t.size
+        d = np.zeros(shape=(self.plt_n, 2), dtype=np.float32)
+        d[:, 1] = self.plt_data[:]
+        d[:, 0] = t[:]
+        mapper = [
+            {'data': d, 'i_l':0, 'i_v':0, 'i_c':0, 'y_unit':"mA", 'x_unit':'ms', 'split_view':(0,0), 'label': 'current_data'},
+            {'data': d, 'i_l':1, 'i_v':0, 'i_c':4, 'y_unit':"bar", 'x_unit':'ms', 'split_view':(1,0), 'label': 'pressure_data'},
+            {'data': d, 'i_l':2, 'i_v':0, 'i_c':1, 'y_unit':"RPM", 'x_unit':'ms', 'split_view':(0,1), 'label': 'pump_rpm'},
+            {'data': d, 'i_l':3, 'i_v':0, 'i_c':2, 'y_unit':"mA", 'x_unit':'ms', 'split_view':(1,1), 'label': 'pump_current'},
+            {'data': d, 'i_l':0, 'i_v':1, 'i_c':1, 'y_unit':"RPM", 'x_unit':'ms', 'split_view':(0,1), 'label': 'rotor_rpm'},
+            {'data': d, 'i_l':1, 'i_v':1, 'i_c':2, 'y_unit':"mA", 'x_unit':'ms', 'split_view':(1,1), 'label': 'rotor_current'},
+            {'data': d, 'i_l':2, 'i_v':1, 'i_c':3, 'y_unit':"rad", 'x_unit':'ms', 'split_view':(2,1), 'label': 'rotor_position'},
+        ]
+
+        for i, map_dict in enumerate(mapper):
+            data = map_dict['data']
+            if data is not None:
+                y = data[1, -512:]
+                self.main_frame.vispy_plot.update_line_split_view(
+                    y_data=y, line_index=map_dict['i_l'], view_index=map_dict['i_v'])
 
         self.main_frame.vispy_plot.refresh_lines()
 
