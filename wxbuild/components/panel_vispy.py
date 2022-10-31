@@ -168,8 +168,12 @@ class VispyLine:
             self._reset_vispy_line_indices()
             self._reset_normalization_parameters()
         else:
-            self.normalize_offset_y = np.amin(y[:self.n_size])
-            self.normalize_scaler_y = 1 / np.amax(y[:self.n_size] - self.normalize_offset_y) * 0.95
+            self.normalize_offset_y = np.amin(self.y_data[:self.n_size])
+            amax = np.amax(self.y_data[:self.n_size] - self.normalize_offset_y)
+            if amax > 0:
+                self.normalize_scaler_y = 1 / amax * 0.95
+            else:
+                self.normalize_scaler_y = 1
         self.y_data[:self.n_size] = y[:self.n_size]
         self._calculate_stats()
         self._calculate_local_stats_from_x()
@@ -181,7 +185,11 @@ class VispyLine:
             self._reset_vispy_line_indices()
         else:
             self.normalize_offset_x = np.amin(x[:self.n_size])
-            self.normalize_scaler_x = 1 / np.amax(x[:self.n_size] - self.normalize_offset_x) * 0.95
+            amax = np.amax(self.x_data[:self.n_size] - self.normalize_offset_x)
+            if amax > 0:
+                self.normalize_scaler_x = 1 / amax * 0.95
+            else:
+                self.normalize_scaler_x = 1
         # print(" recalculating normalization numbers:", self.normalize_offset_x, self.normalize_scaler_x, " | ", self.label, self.split_view_row_index, self.split_view_col_index)
         #
         self.x_data[:self.n_size] = x[:self.n_size]
@@ -786,15 +794,15 @@ class VispyPanel(wx.Panel):
     def update_line(self, line_index, view_index=None, y_data=None, x_data=None, color=None, label=None):
         if view_index is not None:
             self.selected_view_index = view_index
-
-
+        else:
+            view_index = self.selected_view_index
 
         # We have 1 ekstra vertex for splitting the lines visually
         # n_data = self.data_sets[self.selected_view_index][0].shape[1]
         # start_indx = n_data * line_index + line_index
         # end_indx = start_indx + n_data + 1
-        line = self.data_sets[self.selected_view_index][line_index]
-        self.pending_line_updates.append(self.selected_view_index*1000 + line_index)
+        line = self.data_sets[view_index][line_index]
+        self.pending_line_updates.append(view_index*1000 + line_index)
 
         # pos = self.lines[view_index].pos
         # color_arr = self.lines[view_index].color
