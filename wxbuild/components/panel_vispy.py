@@ -506,6 +506,8 @@ class VispyPanel(wx.Panel):
 
         self.mouse_moved = True
         if self.show_tooltip_panel:
+            if self.tooltip_panel.IsShown():
+                self.tooltip_panel.Hide()
             self.tooltip_timer.reset_timer()
 
         if hasattr(self.mousemove_callback, '__call__'):
