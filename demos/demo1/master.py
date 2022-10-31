@@ -155,36 +155,36 @@ class Master(master.Master):
         y2 = self.plt_data_2[:self.plt_n]
         # self.main_frame.vispy_plot.update_line(y_data=y0, line_index=0)
         # self.main_frame.vispy_plot.update_line(y_data=y1, line_index=1)
+        self.main_frame.vispy_plot.update_line_split_view(
+            line_index=0, view_index=0, y_data=y0, x_data=t[:self.plt_n], label="Channel 0", color='auto', split_view=(0,0))
+        self.main_frame.vispy_plot.update_line_split_view(
+            line_index=1, view_index=0, y_data=y1, x_data=t[:self.plt_n], label="Channel 1", color='auto', split_view=(1,0))
+        self.main_frame.vispy_plot.update_line_split_view(
+            line_index=2, view_index=0, y_data=y2, x_data=t[:self.plt_n], label="Channel 2", color='auto', split_view=(0,1))
         self.main_frame.vispy_plot.update_line(
-            line_index=0, view_index=0, y_data=y0, x_data=t[:self.plt_n], label="Channel 0", color='auto')
+            line_index=0, view_index=1, y_data=y0, x_data=t[:self.plt_n], label="Channel 00", color='auto')
         self.main_frame.vispy_plot.update_line(
-            line_index=1, view_index=0, y_data=y1, x_data=t[:self.plt_n], label="Channel 1", color='auto')
-        self.main_frame.vispy_plot.update_line(
-            line_index=2, view_index=0, y_data=y2, x_data=t[:self.plt_n], label="Channel 2", color='auto')
-        self.main_frame.vispy_plot.update_line(
-            line_index=0, view_index=1, y_data=y0, x_data=t[:self.plt_n], label="Channel 0", color='auto')
-        self.main_frame.vispy_plot.update_line(
-            line_index=1, view_index=1, y_data=y1, x_data=t[:self.plt_n], label="Channel 1", color='auto')
+            line_index=1, view_index=1, y_data=y1, x_data=t[:self.plt_n], label="Channel 11", color='auto')
 
         self.main_frame.vispy_plot.show_legend_panel = False
         self.main_frame.vispy_plot.show_tooltip_panel = False
         self.main_frame.vispy_plot.post_init()
 
     def update_vispy_plots(self):
-        self.plot_update_counter += 1
-        if self.plot_update_counter % 1 == 0:
-            time_now = time.time()
-            ms = int(time_now*1000)%1000
-            tss = time.strftime("%M:%S", time.localtime())
-            print(f"# update vispy buffers ::  {tss}.{ms:<03d}")
+        # self.plot_update_counter += 1
+        # if self.plot_update_counter % 1 == 0:
+        #     time_now = time.time()
+        #     ms = int(time_now*1000)%1000
+        #     tss = time.strftime("%M:%S", time.localtime())
+        #     print(f"# update vispy buffers ::  {tss}.{ms:<03d}")
 
         y0 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n - self.plt_n//2 * self.plt_set]
         y1 = np.roll(self.plt_data, - self.plt_pointer)[:self.plt_n - self.plt_n//2 * self.plt_set] + 2
         y2 = np.roll(self.plt_data_2, - self.plt_pointer//3)[:self.plt_n]
-        for i in range(40):
-            self.main_frame.vispy_plot.update_line(y_data=y0, line_index=0, view_index=self.plt_set)
-            self.main_frame.vispy_plot.update_line(y_data=y1, line_index=1, view_index=self.plt_set)
-            self.main_frame.vispy_plot.update_line(y_data=y2, line_index=2, view_index=0)
+        for i in range(1):
+            self.main_frame.vispy_plot.update_line_split_view(y_data=y0, line_index=0, view_index=self.plt_set)
+            self.main_frame.vispy_plot.update_line_split_view(y_data=y1, line_index=1, view_index=self.plt_set)
+            self.main_frame.vispy_plot.update_line_split_view(y_data=y2, line_index=2, view_index=0)
         self.plt_pointer = self.plt_pointer + 50
 
         self.main_frame.vispy_plot.refresh_lines()

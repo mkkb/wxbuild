@@ -68,8 +68,14 @@ class VispyLine:
 
     def get_data(self):
         pos = np.zeros(shape=(self.n_size, 2), dtype=np.float32)
-        pos[: self.n_size, 0] = self.x_data[:self.n_size]
-        pos[: self.n_size, 1] = self.y_data[:self.n_size]
+
+        if self.normalize:
+            pos[: self.n_size, 0] = self.get_x_data_split_view()[: self.n_size]
+            pos[: self.n_size, 1] = self.get_y_data_split_view()[: self.n_size]
+        else:
+            pos[: self.n_size, 0] = self.x_data[:self.n_size]
+            pos[: self.n_size, 1] = self.y_data[:self.n_size]
+
         if self.n_size_init > self.n_size:
             pos[self.n_size: self.n_size_init, :] = np.nan
         return pos
@@ -162,6 +168,10 @@ class VispyLine:
         self.show = show
         self.normalize = normalize
 
+    def set_split_view_col_and_row(self, col, row):
+        self.split_view_col_index = col
+        self.split_view_row_index = row
+
     def set_split_view_coordinate(self, split_view_col_index, split_view_row_index):
         self.split_view_col_index = split_view_col_index
         self.split_view_row_index = split_view_row_index
@@ -185,6 +195,11 @@ class VispyLine:
         self.stats_std = self.y_data.std()
         self.stats_max = np.max(self.y_data)
         self.stats_min = np.min(self.y_data)
+
+    def set_local_x_value_from_normalized_x(self, x_normalized):
+        # self.local_x_value = x_value
+        # self._calculate_local_stats_from_x()
+        pass
 
     def set_local_x_value(self, x_value):
         self.local_x_value = x_value
@@ -408,6 +423,7 @@ class VispyPanel(wx.Panel):
             pass
 
         else:
+            # Dirty fix to bug that fix a pan zoom problem that occurs when dragging outside the view
             if event._button is None:
                 if len(event._buttons) > 0:
                     self.canvas._backend._vispy_mouse_data['buttons'] = []
@@ -471,6 +487,31 @@ class VispyPanel(wx.Panel):
         normalized_x, normalized_y = mouse_x_vb / rect_x, 1 - mouse_y_vb / rect_y
         view_box_mouse_x = normalized_x * x_camera_rect_size + x_camera_rect_pos
         view_box_mouse_y = normalized_y * y_camera_rect_size + y_camera_rect_pos
+
+        # # Get closest point on line to mouse
+        for l_indx, line in self.data_sets[plot_index].items():
+            # print(" is this a good line?", l_indx, line.label, " | ", line.split_view_row_index, int(view_box_mouse_x), " | ", line.split_view_col_index, int(view_box_mouse_y))
+            # print("  -- ", view_box_mouse_x, int(view_box_mouse_x), view_box_mouse_y, int(view_box_mouse_y), " || ", line.split_view_row_index, line.split_view_col_index)
+            if line.split_view_row_index == int(view_box_mouse_x):
+                if line.split_view_col_index == int(view_box_mouse_y):
+                    print(" Good line:: ", line.label, "  -  ", line.get)
+
+        # line_pos = self.lines[plot_index].pos
+        # non_nans_mask = ~np.isnan(line_pos[:, 1]) & ~np.isnan(line_pos[:, 0])
+        # x_ = line_pos[non_nans_mask, 0]
+        # y_ = line_pos[non_nans_mask, 1]
+        #
+        # print(" shape line_pos:: ", x_.shape, y_.shape)
+        # distance = np.sqrt(
+        #     np.power(x_ - view_box_mouse_x, 2) +
+        #     np.power(y_ - view_box_mouse_y, 2)
+        # )
+        # print(" shape distance:: ", distance.shape)
+        # min_distance_arg = np.argmin(distance)
+        # min_distance = np.min(distance)
+        #
+        # print(" Mouse move:: ", self.mouse_x_absolute, self.mouse_y_absolute, " | ", normalized_x, normalized_y, " || ",
+        #       view_box_mouse_x, view_box_mouse_y, " ||| ", plot_index, min_distance, min_distance_arg)
 
         self.mouse_x = view_box_mouse_x
         self.mouse_y = view_box_mouse_y
@@ -643,6 +684,7 @@ class VispyPanel(wx.Panel):
         # color_arr = self.lines[view_index].color
 
         if label is not None:
+            line.set_label(label=label)
             if view_index in self.line_labels.keys():
                 self.line_labels[view_index][line_index] = label
 
@@ -672,6 +714,37 @@ class VispyPanel(wx.Panel):
         # else:
         #     self.lines[view_index].set_data(pos=pos)
         # self.refresh_lines()
+
+    def update_line_split_view(self, line_index, view_index=None, y_data=None, x_data=None, color=None, label=None, split_view=None):
+        if view_index is not None:
+            self.selected_view_index = view_index
+
+        line = self.data_sets[self.selected_view_index][line_index]
+        self.pending_line_updates.append(self.selected_view_index*1000 + line_index)
+
+        line.set_show_mode(show=True, normalize=True)
+        if split_view is not None:
+            line.set_split_view_col_and_row(*split_view)
+
+        if label is not None:
+            line.set_label(label=label)
+            if view_index in self.line_labels.keys():
+                self.line_labels[view_index][line_index] = label
+
+
+        if x_data is not None:
+            line.set_x_data(x_data)
+
+        if y_data is not None:
+            line.set_y_data(y_data)
+
+        if color is not None:
+            if color == 'auto':
+                c = wx.Colour(ColorsCyclic.get_color())
+            else:
+                c = wx.Colour(color)
+
+            line.set_color(c)
 
     def refresh_lines(self):
         if self.get_time_now_ms() - self.time_of_last_refresh > self.minimum_refresh_rate_ms:
