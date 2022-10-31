@@ -6,6 +6,7 @@ import numpy as np
 
 from wxbuild.components.styles_colors import ColorsCyclic
 import wxbuild.components.custom_widgets.gradientbutton as wxgb
+from wxbuild.components.mainframe import Timer
 
 
 PlotColors = ColorsCyclic()
@@ -384,7 +385,7 @@ class VispyPanel(wx.Panel):
         self.tooltip_panel = ToolTip(self, size=wx.Size(100, 200), pos=(20, 20))
         # self.tooltip_panel.SetBackgroundColour(wx.Colour("#aabbaa"))
         self.tooltip_panel.Hide()
-        self.tooltip_timer = None
+        self.tooltip_timer = Timer(timeout_limit_ms=50, timeout_long_limit_ms=800)
         for i in range(self.plot_rows * self.plot_cols):
             panel_ = LegendPanel(self, size=wx.Size(100, 200), pos=(500 + 20*i, 40 + 5*i))
             self.legend_panels.append(panel_)
@@ -475,9 +476,7 @@ class VispyPanel(wx.Panel):
         self.canvas.events.mouse_press.connect(self.on_mouse_pressed)
 
     def post_init(self):
-        if self.show_tooltip_panel:
-            from wxbuild.components.mainframe import Timer
-            self.tooltip_timer = Timer(timeout_limit_ms=10)
+        pass
 
     #
     def get_time_now_ms(self):
