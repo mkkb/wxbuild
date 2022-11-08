@@ -924,10 +924,11 @@ class VispyPanel(wx.Panel):
 
                 # x_masked = pos[non_nans_mask, 0]
                 # y_masked = pos[non_nans_mask, 1]
-                self.x_data_min[view_index] = np.amin(pos[non_nans_mask, 0])
-                self.x_data_max[view_index] = np.amax(pos[non_nans_mask, 0])
-                self.y_data_min[view_index] = np.amin(pos[non_nans_mask, 1])
-                self.y_data_max[view_index] = np.amax(pos[non_nans_mask, 1])
+                if np.count_nonzero(non_nans_mask) > 1:
+                    self.x_data_min[view_index] = np.amin(pos[non_nans_mask, 0])
+                    self.x_data_max[view_index] = np.amax(pos[non_nans_mask, 0])
+                    self.y_data_min[view_index] = np.amin(pos[non_nans_mask, 1])
+                    self.y_data_max[view_index] = np.amax(pos[non_nans_mask, 1])
                 # print(" -- ", non_nans_mask.shape, x_masked.shape, y_masked.shape)
                 # print("     self.x_data_min", np.amin(x_masked))
                 # print("     self.x_data_max", np.amax(x_masked))
