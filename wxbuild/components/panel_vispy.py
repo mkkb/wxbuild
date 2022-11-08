@@ -93,7 +93,9 @@ class VispyLine:
         self.vispy_line_end_index = self.vispy_line_start_index + n_size # + 1
 
     def get_data(self):
+        # print(" get_data", self.show, self.normalize, " | ", self.label, self.description, " | ", self.return_nan_data, " | ", self.n_size, self.n_size_init)
         if not self.show:
+            # print("  -* not showing data, returning nans")
             pos = np.zeros(shape=(self.n_size_init, 2), dtype=np.float32)
             pos[self.n_size:, :] = np.nan
             return pos
@@ -105,19 +107,22 @@ class VispyLine:
             pos = np.zeros(shape=(self.n_size, 2), dtype=np.float32)
 
         if self.normalize:
-            pos[: self.n_size, 0] = self.get_x_data_split_view()[: self.n_size]
-            pos[: self.n_size, 1] = self.get_y_data_split_view()[: self.n_size]
-            # print(" getting normalized data: ", self.label, " | ", self.split_view_row_index, self.split_view_col_index)
-            # print("  -> x : ", np.amin(self.get_x_data_split_view()[: self.n_size]), np.amax(self.get_x_data_split_view()[: self.n_size]) , self.n_size,
-            #       "  || ", np.amin(self.get_x_data()[: self.n_size]), np.amax(self.get_x_data()[: self.n_size]))
-            # print("  -> y : ", np.amin(self.get_y_data_split_view()[: self.n_size]), np.amax(self.get_y_data_split_view()[: self.n_size]) , self.n_size,
-            #       "  || ", np.amin(self.get_y_data()[: self.n_size]), np.amax(self.get_y_data()[: self.n_size]))
+            pos[: self.n_size, 0] = self.get_x_data_split_view()
+            pos[: self.n_size, 1] = self.get_y_data_split_view()
+            # print("  -* getting normalized data: ", self.label, " | ", self.split_view_row_index, self.split_view_col_index)
+            # print("  -* -> x : ", np.amin(self.get_x_data_split_view()[: self.n_size]), np.amax(self.get_x_data_split_view()[: self.n_size]) , self.n_size,
+            #       "  -* || ", np.amin(self.get_x_data()[: self.n_size]), np.amax(self.get_x_data()[: self.n_size]))
+            # print("  -* -> y : ", np.amin(self.get_y_data_split_view()[: self.n_size]), np.amax(self.get_y_data_split_view()[: self.n_size]) , self.n_size,
+            #       "  -* || ", np.amin(self.get_y_data()[: self.n_size]), np.amax(self.get_y_data()[: self.n_size]))
         else:
             pos[: self.n_size, 0] = self.x_data[:self.n_size]
             pos[: self.n_size, 1] = self.y_data[:self.n_size]
+            # print("  -* getting plain data", self.x_data[:self.n_size].mean(), self.y_data[:self.n_size].mean())
 
         if self.return_nan_data:
             self.return_nan_data = False
+            # print("  -* returning (also nan data):: ", pos.shape, np.amin(pos[:, 0]), np.amax(pos[:, 0]), np.amin(pos[:, 1]), np.amax(pos[:, 1]))
+            # print(pos)
             return pos, self.vispy_line_start_index, self.vispy_line_start_index + self.n_size_init
         else:
             return pos, self.vispy_line_start_index, self.vispy_line_end_index
@@ -134,6 +139,15 @@ class VispyLine:
             x[self.n_size: self.n_size_init, :] = np.nan
         return x
 
+    def get_color_single_point(self):
+        c = self.color
+        r, g, b = c.Red(), c.Green(), c.Blue()
+        color_arr = np.zeros(shape=(1, 4), dtype=np.float32)
+        color_arr[:, :] = np.array([r, g, b, 255], dtype=np.float32) / 255
+        # print("  vispy_line  new_color:: ", r, g, b, " || ", color_arr)
+        self.update_color = False
+        return color_arr
+
     def get_color_data(self):
         print(" - getting color data from line:: ", self.label, self.n_size, self.n_size_init)
         c = self.color
@@ -144,13 +158,17 @@ class VispyLine:
         return color_arr
 
     def get_x_data_split_view(self):
-        normalized_data = self.x_data - self.normalize_offset_x
+        # print("  -*  get_x_data_split_view:: ", self.normalize_offset_x, self.normalize_scaler_x, self.split_view_row_index)
+        normalized_data = self.x_data[:self.n_size] - self.normalize_offset_x
         normalized_data = normalized_data * self.normalize_scaler_x + 0.025 + self.split_view_row_index
+        # print("  -*  get_x_data_split_view:: ", normalized_data)
         return normalized_data
 
     def get_y_data_split_view(self):
-        normalized_data = self.y_data - self.normalize_offset_y
+        # print("  -*  get_y_data_split_view:: ", self.normalize_offset_y, self.normalize_scaler_y, self.split_view_col_index)
+        normalized_data = self.y_data[:self.n_size] - self.normalize_offset_y
         normalized_data = normalized_data * self.normalize_scaler_y + 0.025 + self.split_view_col_index
+        # print("  -*  get_y_data_split_view:: ", normalized_data)
         return normalized_data
 
     def set_data(self, x: np.ndarray, y: np.ndarray):
@@ -170,6 +188,13 @@ class VispyLine:
         self.initialized = True
         if y.size != self.n_size:
             self.n_size = y.size
+            new_size = True
+        else:
+            new_size = False
+        self.y_data[:self.n_size] = y[:self.n_size]
+
+        if new_size:
+            # print(" set_y_data:: y.size != self.n_size")
             self._reset_vispy_line_indices()
             self._reset_normalization_parameters()
         else:
@@ -179,15 +204,25 @@ class VispyLine:
                 self.normalize_scaler_y = 1 / amax * 0.95
             else:
                 self.normalize_scaler_y = 1
-        self.y_data[:self.n_size] = y[:self.n_size]
+            # print(" set_y_data:: y.size == self.n_size  || ", self.normalize_offset_y, self.normalize_scaler_y)
+
         self._calculate_stats()
         self._calculate_local_stats_from_x()
+        # print(" set_y_data:: ", y.shape, " || ", np.amax(y), np.amin(y), self.n_size)
 
     def set_x_data(self, x: np.ndarray):
         self.initialized = True
         if x.size != self.n_size:
             self.n_size = x.size
+            new_size = True
+        else:
+            new_size = False
+        self.x_data[:self.n_size] = x[:self.n_size]
+
+        if new_size:
+            self.n_size = x.size
             self._reset_vispy_line_indices()
+            self._reset_normalization_parameters()
         else:
             self.normalize_offset_x = np.amin(x[:self.n_size])
             amax = np.amax(self.x_data[:self.n_size] - self.normalize_offset_x)
@@ -197,9 +232,9 @@ class VispyLine:
                 self.normalize_scaler_x = 1
         # print(" recalculating normalization numbers:", self.normalize_offset_x, self.normalize_scaler_x, " | ", self.label, self.split_view_row_index, self.split_view_col_index)
         #
-        self.x_data[:self.n_size] = x[:self.n_size]
         self._calculate_stats()
         self._calculate_local_stats_from_x()
+        # print(" set_x_data:: ", x.shape, " || ", np.amin(x), np.amax(x), self.n_size)
 
     def set_color(self, color):
         self.color = color
@@ -322,6 +357,7 @@ class VispyLine:
         else:
             self.normalize_scaler_x = 1
         #
+        # print(" _reset_normalization_parameters  y_data:: ", self.y_data[:self.n_size])
         self.normalize_offset_y = np.amin(self.y_data[:self.n_size])
         amax = np.amax(self.y_data[:self.n_size] - self.normalize_offset_y)
         if amax > 0:
@@ -653,7 +689,7 @@ class VispyPanel(wx.Panel):
             if len(self.x_data_min) >= ax_i - 1:
                 if direction is None:
                     print(' zooming home, all directions:',
-                          ax_i, self.x_data_max, self.x_data_min, self.y_data_max, self.y_data_min)
+                          ax_i, self.x_data_max[ax_i], self.x_data_min[ax_i], self.y_data_max[ax_i], self.y_data_min[ax_i])
                     self.view_boxes[ax_i].camera.set_range(
                         (self.x_data_min[ax_i], self.x_data_max[ax_i]),
                         (self.y_data_min[ax_i], self.y_data_max[ax_i]),
@@ -833,9 +869,12 @@ class VispyPanel(wx.Panel):
         if color is not None:
             if color == 'auto':
                 c = wx.Colour(ColorsCyclic.get_color())
+            elif isinstance(color, int):
+                c = wx.Colour(ColorsCyclic.get_color_by_index(color))
             else:
                 c = wx.Colour(color)
 
+            print("  update_line:: SETTING COLOR", color, isinstance(color, int), isinstance(color, str), c)
             line.set_color(c)
             # print(" c - ", c, type(c))
             # r, g, b = c.Red(), c.Green(), c.Blue()
@@ -871,9 +910,12 @@ class VispyPanel(wx.Panel):
         if color is not None:
             if color == 'auto':
                 c = wx.Colour(ColorsCyclic.get_color())
+            elif isinstance(color, int):
+                c = wx.Colour(ColorsCyclic.get_color_by_index(color))
             else:
                 c = wx.Colour(color)
 
+            # print("  update_line_split_view:: SETTING COLOR", color, isinstance(color, int), isinstance(color, str), c)
             line.set_color(c)
 
     def refresh_lines(self):
@@ -892,35 +934,42 @@ class VispyPanel(wx.Panel):
                 line = self.data_sets[view_index][line_index]
 
                 pos_this_line, start_indx, end_indx = line.get_data()
-                # print(" --- ", view_index, line_index, " || ", pos_this_line.shape, color_this_line.shape, start_indx, end_indx)
                 pos_all[start_indx: end_indx, :] = pos_this_line[:, :]
                 views_updated.append(view_index)
 
                 # y_max, y_min = np.amax(pos_all[start_indx: end_indx, 1]), np.amin(pos_all[start_indx: end_indx, 1])
                 # x_max, x_min = np.amax(pos_all[start_indx: end_indx, 0]), np.amin(pos_all[start_indx: end_indx, 0])
-
                 # print(" refreshing lines::: ", line.initialized, line.n_size, line.n_size_init, line.label, view_index)
+                # print("    -  x :", pos_all[start_indx: start_indx + line.n_size, 0].mean())
+                # print("    -  y :", pos_all[start_indx: start_indx + line.n_size, 1].mean())
                 # print("    - ", y_min, y_max, x_min, x_max, "  | ", start_indx, end_indx)
+
                 if line.update_color:
                     # print(" also updating color--- ", view_index, line_index)
                     if view_index not in color_vals:
                         color_vals[view_index] = self.lines[view_index].color.copy()
-                    col_all = color_vals[view_index]
-                    color_this_line = line.get_color_data()
-                    # print(" colors :: ", col_all.shape, color_this_line.shape)
-                    col_all[start_indx: end_indx, :] = color_this_line[:, :]
+                    # col_all = color_vals[view_index]
+                    # color_of_this_line = line.get_color_data()
+                    color_of_this_line = line.get_color_single_point()
+                    # print(" colors :: ", color_vals[view_index].shape, color_of_this_line.shape, color_of_this_line)
+                    color_vals[view_index][start_indx: end_indx, :] = color_of_this_line[0, :]# color_this_line[: end_indx - start_indx, :]
 
             self.pending_line_updates = []
 
             for view_index in list(set(views_updated)):
-                # print(" REFRESHING LINES---", view_index)
+                # print(" REFRESHING LINES---", view_index, view_index in color_vals)
                 pos = pos_vals[view_index]
+                non_nans_mask = ~np.isnan(pos[:, 1]) & ~np.isnan(pos[:, 0])
+
                 if view_index in color_vals:
+                    # print(" -- color_vals", color_vals[view_index].shape)
+                    # print(" -- pos:: ", pos[non_nans_mask, :],)
+                    # print(" -- color_vals:: ",color_vals[view_index][non_nans_mask, :])
                     self.lines[view_index].set_data(pos=pos, color=color_vals[view_index])
                 else:
+                    # print(" -- pos:: ", pos[non_nans_mask, :])
                     self.lines[view_index].set_data(pos=pos)
 
-                non_nans_mask = ~np.isnan(pos[:, 1]) & ~np.isnan(pos[:, 0])
 
                 # x_masked = pos[non_nans_mask, 0]
                 # y_masked = pos[non_nans_mask, 1]
@@ -929,11 +978,11 @@ class VispyPanel(wx.Panel):
                     self.x_data_max[view_index] = np.amax(pos[non_nans_mask, 0])
                     self.y_data_min[view_index] = np.amin(pos[non_nans_mask, 1])
                     self.y_data_max[view_index] = np.amax(pos[non_nans_mask, 1])
-                # print(" -- ", non_nans_mask.shape, x_masked.shape, y_masked.shape)
-                # print("     self.x_data_min", np.amin(x_masked))
-                # print("     self.x_data_max", np.amax(x_masked))
-                # print("     self.y_data_min", self.y_data_min)
-                # print("     self.y_data_max", self.y_data_max)
+                # print(" -- ", np.count_nonzero(non_nans_mask))
+                # print("     self.x_data_min", self.x_data_min[view_index])
+                # print("     self.x_data_max", self.x_data_max[view_index])
+                # print("     self.y_data_min", self.y_data_min[view_index])
+                # print("     self.y_data_max", self.y_data_max[view_index])
 
     def hide_line(self, line_index, view_index=None):
         if view_index is not None:
