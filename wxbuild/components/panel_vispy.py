@@ -93,6 +93,11 @@ class VispyLine:
         self.vispy_line_end_index = self.vispy_line_start_index + n_size # + 1
 
     def get_data(self):
+        if not self.show:
+            pos = np.zeros(shape=(self.n_size_init, 2), dtype=np.float32)
+            pos[self.n_size:, :] = np.nan
+            return pos
+
         if self.return_nan_data:
             pos = np.zeros(shape=(self.n_size_init, 2), dtype=np.float32)
             pos[self.n_size:, :] = np.nan
@@ -791,7 +796,7 @@ class VispyPanel(wx.Panel):
     def select_view_index(self, view_index):
         self.selected_view_index = view_index
 
-    def update_line(self, line_index, view_index=None, y_data=None, x_data=None, color=None, label=None):
+    def update_line(self, line_index, view_index=None, y_data=None, x_data=None, color=None, label=None, show=True):
         if view_index is not None:
             self.selected_view_index = view_index
         else:
@@ -803,6 +808,7 @@ class VispyPanel(wx.Panel):
         # end_indx = start_indx + n_data + 1
         line = self.data_sets[view_index][line_index]
         self.pending_line_updates.append(view_index*1000 + line_index)
+        line.set_show_mode(show=show, normalize=False)
 
         # pos = self.lines[view_index].pos
         # color_arr = self.lines[view_index].color
@@ -839,14 +845,14 @@ class VispyPanel(wx.Panel):
         #     self.lines[view_index].set_data(pos=pos)
         # self.refresh_lines()
 
-    def update_line_split_view(self, line_index, view_index=None, y_data=None, x_data=None, color=None, label=None, split_view=None):
+    def update_line_split_view(self, line_index, view_index=None, y_data=None, x_data=None, color=None, label=None, split_view=None, show=True):
         if view_index is not None:
             self.selected_view_index = view_index
 
         line = self.data_sets[self.selected_view_index][line_index]
         self.pending_line_updates.append(self.selected_view_index*1000 + line_index)
 
-        line.set_show_mode(show=True, normalize=True)
+        line.set_show_mode(show=show, normalize=True)
         if split_view is not None:
             line.set_split_view_col_and_row(*split_view)
 
