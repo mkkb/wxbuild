@@ -918,8 +918,8 @@ class VispyPanel(wx.Panel):
             # print("  update_line_split_view:: SETTING COLOR", color, isinstance(color, int), isinstance(color, str), c)
             line.set_color(c)
 
-    def refresh_lines(self):
-        if self.get_time_now_ms() - self.time_of_last_refresh > self.minimum_refresh_rate_ms:
+    def refresh_lines(self, enforce=False):
+        if self.get_time_now_ms() - self.time_of_last_refresh > self.minimum_refresh_rate_ms or enforce:
             self.time_of_last_refresh = self.get_time_now_ms()
             views_updated = []
             pos_vals = {}
