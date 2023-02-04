@@ -207,7 +207,7 @@ class Master(master.Master):
             line.y_unit = map_dict['y_unit']
 
         self.main_frame.vispy_plot.show_legend_panel = False
-        self.main_frame.vispy_plot.show_tooltip_panel = True
+        self.main_frame.vispy_plot.show_tooltip_panel = False
         self.main_frame.vispy_plot.post_init()
 
     def update_vispy_plots(self):
