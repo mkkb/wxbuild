@@ -8,5 +8,7 @@ dependencies:
   - numpy
   - psutil
   - pip
+  - pip:
+      - vispy==0.12.1
 #  - pip:
 #      - -e git+https://github.com/mkkb/vispy.git@dev_073#egg=vispy
