@@ -3,6 +3,8 @@ from dataclasses import dataclass
 import wx
 from vispy import scene
 import numpy as np
+import logging
+logger = logging.getLogger('wx_log')
 
 from wxbuild.components.styles_colors import ColorsCyclic
 import wxbuild.components.custom_widgets.gradientbutton as wxgb
@@ -93,9 +95,9 @@ class VispyLine:
         self.vispy_line_end_index = self.vispy_line_start_index + n_size # + 1
 
     def get_data(self):
-        # print(" get_data", self.show, self.normalize, " | ", self.label, self.description, " | ", self.return_nan_data, " | ", self.n_size, self.n_size_init)
+        # logger.info(" get_data", self.show, self.normalize, " | ", self.label, self.description, " | ", self.return_nan_data, " | ", self.n_size, self.n_size_init)
         if not self.show:
-            # print("  -* not showing data, returning nans")
+            # logger.info("  -* not showing data, returning nans")
             pos = np.zeros(shape=(self.n_size_init, 2), dtype=np.float32)
             pos[self.n_size:, :] = np.nan
             return pos
@@ -109,20 +111,20 @@ class VispyLine:
         if self.normalize:
             pos[: self.n_size, 0] = self.get_x_data_split_view()
             pos[: self.n_size, 1] = self.get_y_data_split_view()
-            # print("  -* getting normalized data: ", self.label, " | ", self.split_view_row_index, self.split_view_col_index)
-            # print("  -* -> x : ", np.amin(self.get_x_data_split_view()[: self.n_size]), np.amax(self.get_x_data_split_view()[: self.n_size]) , self.n_size,
+            # logger.info("  -* getting normalized data: ", self.label, " | ", self.split_view_row_index, self.split_view_col_index)
+            # logger.info("  -* -> x : ", np.amin(self.get_x_data_split_view()[: self.n_size]), np.amax(self.get_x_data_split_view()[: self.n_size]) , self.n_size,
             #       "  -* || ", np.amin(self.get_x_data()[: self.n_size]), np.amax(self.get_x_data()[: self.n_size]))
-            # print("  -* -> y : ", np.amin(self.get_y_data_split_view()[: self.n_size]), np.amax(self.get_y_data_split_view()[: self.n_size]) , self.n_size,
+            # logger.info("  -* -> y : ", np.amin(self.get_y_data_split_view()[: self.n_size]), np.amax(self.get_y_data_split_view()[: self.n_size]) , self.n_size,
             #       "  -* || ", np.amin(self.get_y_data()[: self.n_size]), np.amax(self.get_y_data()[: self.n_size]))
         else:
             pos[: self.n_size, 0] = self.x_data[:self.n_size]
             pos[: self.n_size, 1] = self.y_data[:self.n_size]
-            # print("  -* getting plain data", self.x_data[:self.n_size].mean(), self.y_data[:self.n_size].mean())
+            # logger.info("  -* getting plain data", self.x_data[:self.n_size].mean(), self.y_data[:self.n_size].mean())
 
         if self.return_nan_data:
             self.return_nan_data = False
-            # print("  -* returning (also nan data):: ", pos.shape, np.amin(pos[:, 0]), np.amax(pos[:, 0]), np.amin(pos[:, 1]), np.amax(pos[:, 1]))
-            # print(pos)
+            # logger.info("  -* returning (also nan data):: ", pos.shape, np.amin(pos[:, 0]), np.amax(pos[:, 0]), np.amin(pos[:, 1]), np.amax(pos[:, 1]))
+            # logger.info(pos)
             return pos, self.vispy_line_start_index, self.vispy_line_start_index + self.n_size_init
         else:
             return pos, self.vispy_line_start_index, self.vispy_line_end_index
@@ -144,12 +146,12 @@ class VispyLine:
         r, g, b = c.Red(), c.Green(), c.Blue()
         color_arr = np.zeros(shape=(1, 4), dtype=np.float32)
         color_arr[:, :] = np.array([r, g, b, 255], dtype=np.float32) / 255
-        # print("  vispy_line  new_color:: ", r, g, b, " || ", color_arr)
+        # logger.info("  vispy_line  new_color:: ", r, g, b, " || ", color_arr)
         self.update_color = False
         return color_arr
 
     def get_color_data(self):
-        print(" - getting color data from line:: ", self.label, self.n_size, self.n_size_init)
+        logger.info(" - getting color data from line:: ", self.label, self.n_size, self.n_size_init)
         c = self.color
         r, g, b = c.Red(), c.Green(), c.Blue()
         color_arr = np.zeros(shape=(self.n_size_init, 4), dtype=np.float32)
@@ -158,17 +160,17 @@ class VispyLine:
         return color_arr
 
     def get_x_data_split_view(self):
-        # print("  -*  get_x_data_split_view:: ", self.normalize_offset_x, self.normalize_scaler_x, self.split_view_row_index)
+        # logger.info("  -*  get_x_data_split_view:: ", self.normalize_offset_x, self.normalize_scaler_x, self.split_view_row_index)
         normalized_data = self.x_data[:self.n_size] - self.normalize_offset_x
         normalized_data = normalized_data * self.normalize_scaler_x + 0.025 + self.split_view_row_index
-        # print("  -*  get_x_data_split_view:: ", normalized_data)
+        # logger.info("  -*  get_x_data_split_view:: ", normalized_data)
         return normalized_data
 
     def get_y_data_split_view(self):
-        # print("  -*  get_y_data_split_view:: ", self.normalize_offset_y, self.normalize_scaler_y, self.split_view_col_index)
+        # logger.info("  -*  get_y_data_split_view:: ", self.normalize_offset_y, self.normalize_scaler_y, self.split_view_col_index)
         normalized_data = self.y_data[:self.n_size] - self.normalize_offset_y
         normalized_data = normalized_data * self.normalize_scaler_y + 0.025 + self.split_view_col_index
-        # print("  -*  get_y_data_split_view:: ", normalized_data)
+        # logger.info("  -*  get_y_data_split_view:: ", normalized_data)
         return normalized_data
 
     def set_data(self, x: np.ndarray, y: np.ndarray):
@@ -194,7 +196,7 @@ class VispyLine:
         self.y_data[:self.n_size] = y[:self.n_size]
 
         if new_size:
-            # print(" set_y_data:: y.size != self.n_size")
+            # logger.info(" set_y_data:: y.size != self.n_size")
             self._reset_vispy_line_indices()
             self._reset_normalization_parameters()
         else:
@@ -204,11 +206,11 @@ class VispyLine:
                 self.normalize_scaler_y = 1 / amax * 0.95
             else:
                 self.normalize_scaler_y = 1
-            # print(" set_y_data:: y.size == self.n_size  || ", self.normalize_offset_y, self.normalize_scaler_y)
+            # logger.info(" set_y_data:: y.size == self.n_size  || ", self.normalize_offset_y, self.normalize_scaler_y)
 
         self._calculate_stats()
         self._calculate_local_stats_from_x()
-        # print(" set_y_data:: ", y.shape, " || ", np.amax(y), np.amin(y), self.n_size)
+        # logger.info(" set_y_data:: ", y.shape, " || ", np.amax(y), np.amin(y), self.n_size)
 
     def set_x_data(self, x: np.ndarray):
         self.initialized = True
@@ -230,11 +232,11 @@ class VispyLine:
                 self.normalize_scaler_x = 1 / amax * 0.95
             else:
                 self.normalize_scaler_x = 1
-        # print(" recalculating normalization numbers:", self.normalize_offset_x, self.normalize_scaler_x, " | ", self.label, self.split_view_row_index, self.split_view_col_index)
+        # logger.info(" recalculating normalization numbers:", self.normalize_offset_x, self.normalize_scaler_x, " | ", self.label, self.split_view_row_index, self.split_view_col_index)
         #
         self._calculate_stats()
         self._calculate_local_stats_from_x()
-        # print(" set_x_data:: ", x.shape, " || ", np.amin(x), np.amax(x), self.n_size)
+        # logger.info(" set_x_data:: ", x.shape, " || ", np.amin(x), np.amax(x), self.n_size)
 
     def set_color(self, color):
         self.color = color
@@ -297,9 +299,9 @@ class VispyLine:
         x_arg = max(min(int(x / 0.95 * self.n_size), self.n_size-1), 0)
         self.local_x_value = x_arg
         self._calculate_local_stats_from_x()
-        # print("\nset_local_x_value_from_normalized_x: ", self.label, self.split_view_row_index, self.normalize_scaler_x)
-        # print("   - ", x_normalized, x,  x_arg, "  |  ", self.n_size)
-        # print("  ")
+        # logger.info("\nset_local_x_value_from_normalized_x: ", self.label, self.split_view_row_index, self.normalize_scaler_x)
+        # logger.info("   - ", x_normalized, x,  x_arg, "  |  ", self.n_size)
+        # logger.info("  ")
         # if self.normalize_scaler_x > 0:
         #     x /= self.normalize_scaler_x
         #     x += self.normalize_offset_x
@@ -323,8 +325,8 @@ class VispyLine:
         index_min = max(0, x_arg - w//2)
         index_max = min(self.n_size, x_arg + w // 2)
 
-        # print("\n local x_value::: ", self.label, x_arg, w)
-        # print("  -- ", index_min, index_max)
+        # logger.info("\n local x_value::: ", self.label, x_arg, w)
+        # logger.info("  -- ", index_min, index_max)
         if index_max - index_min > 1:
             self.stats_local_mean = self.y_data[index_min: index_max].mean()
             self.stats_local_std = self.y_data[index_min: index_max].std()
@@ -349,7 +351,7 @@ class VispyLine:
         self.return_nan_data = True
 
     def _reset_normalization_parameters(self):
-        # print('.. reseting noramilzation params:: ', self.label, self.n_size, self.n_size_init)
+        # logger.info('.. reseting noramilzation params:: ', self.label, self.n_size, self.n_size_init)
         self.normalize_offset_x = np.amin(self.x_data[:self.n_size])
         amax = np.amax(self.x_data[:self.n_size] - self.normalize_offset_x)
         if amax > 0:
@@ -357,7 +359,7 @@ class VispyLine:
         else:
             self.normalize_scaler_x = 1
         #
-        # print(" _reset_normalization_parameters  y_data:: ", self.y_data[:self.n_size])
+        # logger.info(" _reset_normalization_parameters  y_data:: ", self.y_data[:self.n_size])
         self.normalize_offset_y = np.amin(self.y_data[:self.n_size])
         amax = np.amax(self.y_data[:self.n_size] - self.normalize_offset_y)
         if amax > 0:
@@ -628,11 +630,11 @@ class VispyPanel(wx.Panel):
         if plot_index in self.data_sets:
             for l_indx, line in self.data_sets[plot_index].items():
                 if line.initialized:
-                    # print(" is this a good line?", l_indx, line.label, " | ", line.split_view_row_index, int(view_box_mouse_x), " | ", line.split_view_col_index, int(view_box_mouse_y))
-                    # print("  -- ", view_box_mouse_x, int(view_box_mouse_x), view_box_mouse_y, int(view_box_mouse_y), " || ", line.split_view_row_index, line.split_view_col_index)
+                    # logger.info(" is this a good line?", l_indx, line.label, " | ", line.split_view_row_index, int(view_box_mouse_x), " | ", line.split_view_col_index, int(view_box_mouse_y))
+                    # logger.info("  -- ", view_box_mouse_x, int(view_box_mouse_x), view_box_mouse_y, int(view_box_mouse_y), " || ", line.split_view_row_index, line.split_view_col_index)
                     if line.split_view_row_index == int(view_box_mouse_x):
                         if line.split_view_col_index == int(view_box_mouse_y):
-                            # print(" Good line?? ", line.label, line.split_view_row_index, line.split_view_col_index, " || ", int(view_box_mouse_x), int(view_box_mouse_y))
+                            # logger.info(" Good line?? ", line.label, line.split_view_row_index, line.split_view_col_index, " || ", int(view_box_mouse_x), int(view_box_mouse_y))
                             line.set_local_x_value_from_normalized_x(view_box_mouse_x)
 
                             line_stats = line.get_stats()
@@ -661,16 +663,16 @@ class VispyPanel(wx.Panel):
         # x_ = line_pos[non_nans_mask, 0]
         # y_ = line_pos[non_nans_mask, 1]
         #
-        # print(" shape line_pos:: ", x_.shape, y_.shape)
+        # logger.info(" shape line_pos:: ", x_.shape, y_.shape)
         # distance = np.sqrt(
         #     np.power(x_ - view_box_mouse_x, 2) +
         #     np.power(y_ - view_box_mouse_y, 2)
         # )
-        # print(" shape distance:: ", distance.shape)
+        # logger.info(" shape distance:: ", distance.shape)
         # min_distance_arg = np.argmin(distance)
         # min_distance = np.min(distance)
         #
-        # print(" Mouse move:: ", self.mouse_x_absolute, self.mouse_y_absolute, " | ", normalized_x, normalized_y, " || ",
+        # logger.info(" Mouse move:: ", self.mouse_x_absolute, self.mouse_y_absolute, " | ", normalized_x, normalized_y, " || ",
         #       view_box_mouse_x, view_box_mouse_y, " ||| ", plot_index, min_distance, min_distance_arg)
 
         self.mouse_x = view_box_mouse_x
@@ -688,7 +690,7 @@ class VispyPanel(wx.Panel):
         for ax_i in axes_to_modify:
             if len(self.x_data_min) >= ax_i - 1:
                 if direction is None:
-                    print(' zooming home, all directions:',
+                    logger.info(' zooming home, all directions:',
                           ax_i, self.x_data_max[ax_i], self.x_data_min[ax_i], self.y_data_max[ax_i], self.y_data_min[ax_i])
                     self.view_boxes[ax_i].camera.set_range(
                         (self.x_data_min[ax_i], self.x_data_max[ax_i]),
@@ -769,7 +771,7 @@ class VispyPanel(wx.Panel):
                 axis.visible = False
             else:
                 axis.visible = True
-        print(" hiding axes::: ", )
+        logger.info(" hiding axes::: ", )
 
     def toggle_viewbox(self):
         self.hide_info_panels()
@@ -874,9 +876,9 @@ class VispyPanel(wx.Panel):
             else:
                 c = wx.Colour(color)
 
-            print("  update_line:: SETTING COLOR", color, isinstance(color, int), isinstance(color, str), c)
+            logger.info("  update_line:: SETTING COLOR", color, isinstance(color, int), isinstance(color, str), c)
             line.set_color(c)
-            # print(" c - ", c, type(c))
+            # logger.info(" c - ", c, type(c))
             # r, g, b = c.Red(), c.Green(), c.Blue()
             # color_arr[start_indx:end_indx, :] = np.array([r, g, b, 255], dtype=np.float32) / 255
             # self.lines[view_index].set_data(pos=pos, color=color_arr)
@@ -901,7 +903,7 @@ class VispyPanel(wx.Panel):
                 self.line_labels[view_index][line_index] = label
 
         if x_data is not None:
-            # print(" new x data?? ", x_data.shape, np.amax(x_data), np.amin(x_data), line_index, view_index, color, label, split_view)
+            # logger.info(" new x data?? ", x_data.shape, np.amax(x_data), np.amin(x_data), line_index, view_index, color, label, split_view)
             line.set_x_data(x_data)
 
         if y_data is not None:
@@ -915,7 +917,7 @@ class VispyPanel(wx.Panel):
             else:
                 c = wx.Colour(color)
 
-            # print("  update_line_split_view:: SETTING COLOR", color, isinstance(color, int), isinstance(color, str), c)
+            # logger.info("  update_line_split_view:: SETTING COLOR", color, isinstance(color, int), isinstance(color, str), c)
             line.set_color(c)
 
     def refresh_lines(self, enforce=False):
@@ -939,35 +941,35 @@ class VispyPanel(wx.Panel):
 
                 # y_max, y_min = np.amax(pos_all[start_indx: end_indx, 1]), np.amin(pos_all[start_indx: end_indx, 1])
                 # x_max, x_min = np.amax(pos_all[start_indx: end_indx, 0]), np.amin(pos_all[start_indx: end_indx, 0])
-                # print(" refreshing lines::: ", line.initialized, line.n_size, line.n_size_init, line.label, view_index)
-                # print("    -  x :", pos_all[start_indx: start_indx + line.n_size, 0].mean())
-                # print("    -  y :", pos_all[start_indx: start_indx + line.n_size, 1].mean())
-                # print("    - ", y_min, y_max, x_min, x_max, "  | ", start_indx, end_indx)
+                # logger.info(" refreshing lines::: ", line.initialized, line.n_size, line.n_size_init, line.label, view_index)
+                # logger.info("    -  x :", pos_all[start_indx: start_indx + line.n_size, 0].mean())
+                # logger.info("    -  y :", pos_all[start_indx: start_indx + line.n_size, 1].mean())
+                # logger.info("    - ", y_min, y_max, x_min, x_max, "  | ", start_indx, end_indx)
 
                 if line.update_color:
-                    # print(" also updating color--- ", view_index, line_index)
+                    # logger.info(" also updating color--- ", view_index, line_index)
                     if view_index not in color_vals:
                         color_vals[view_index] = self.lines[view_index].color.copy()
                     # col_all = color_vals[view_index]
                     # color_of_this_line = line.get_color_data()
                     color_of_this_line = line.get_color_single_point()
-                    # print(" colors :: ", color_vals[view_index].shape, color_of_this_line.shape, color_of_this_line)
+                    # logger.info(" colors :: ", color_vals[view_index].shape, color_of_this_line.shape, color_of_this_line)
                     color_vals[view_index][start_indx: end_indx, :] = color_of_this_line[0, :]# color_this_line[: end_indx - start_indx, :]
 
             self.pending_line_updates = []
 
             for view_index in list(set(views_updated)):
-                # print(" REFRESHING LINES---", view_index, view_index in color_vals)
+                # logger.info(" REFRESHING LINES---", view_index, view_index in color_vals)
                 pos = pos_vals[view_index]
                 non_nans_mask = ~np.isnan(pos[:, 1]) & ~np.isnan(pos[:, 0])
 
                 if view_index in color_vals:
-                    # print(" -- color_vals", color_vals[view_index].shape)
-                    # print(" -- pos:: ", pos[non_nans_mask, :],)
-                    # print(" -- color_vals:: ",color_vals[view_index][non_nans_mask, :])
+                    # logger.info(" -- color_vals", color_vals[view_index].shape)
+                    # logger.info(" -- pos:: ", pos[non_nans_mask, :],)
+                    # logger.info(" -- color_vals:: ",color_vals[view_index][non_nans_mask, :])
                     self.lines[view_index].set_data(pos=pos, color=color_vals[view_index])
                 else:
-                    # print(" -- pos:: ", pos[non_nans_mask, :])
+                    # logger.info(" -- pos:: ", pos[non_nans_mask, :])
                     self.lines[view_index].set_data(pos=pos)
 
 
@@ -978,11 +980,11 @@ class VispyPanel(wx.Panel):
                     self.x_data_max[view_index] = np.amax(pos[non_nans_mask, 0])
                     self.y_data_min[view_index] = np.amin(pos[non_nans_mask, 1])
                     self.y_data_max[view_index] = np.amax(pos[non_nans_mask, 1])
-                # print(" -- ", np.count_nonzero(non_nans_mask))
-                # print("     self.x_data_min", self.x_data_min[view_index])
-                # print("     self.x_data_max", self.x_data_max[view_index])
-                # print("     self.y_data_min", self.y_data_min[view_index])
-                # print("     self.y_data_max", self.y_data_max[view_index])
+                # logger.info(" -- ", np.count_nonzero(non_nans_mask))
+                # logger.info("     self.x_data_min", self.x_data_min[view_index])
+                # logger.info("     self.x_data_max", self.x_data_max[view_index])
+                # logger.info("     self.y_data_min", self.y_data_min[view_index])
+                # logger.info("     self.y_data_max", self.y_data_max[view_index])
 
     def hide_line(self, line_index, view_index=None):
         if view_index is not None:
@@ -1005,17 +1007,17 @@ class VispyPanel(wx.Panel):
         # TODO TODO
         if self.IsShown():
             if self.mouse_moved and not self.mouse_dragging:
-                # print(" - ", self.mouse_moved)
+                # logger.info(" - ", self.mouse_moved)
                 if self.tooltip_timer.has_timed_out():
                     self.mouse_moved = False
                     self.tooltip_timer.reset_timer()
                     self.tooltip_timer.reset_long_timer()
-                    # print(" updating widget..")
-                    # print(" - ", self.mouse_x, self.mouse_y)
-                    # print(" - ", self.mouse_x_absolute, self.mouse_y_absolute)
-                    # print(" - ", self.GetSize())
-                    # print(" - ", self.tooltip_panel.GetPosition())
-                    # print("   - view under mouse: ", self.mouse_over_plot)
+                    # logger.info(" updating widget..")
+                    # logger.info(" - ", self.mouse_x, self.mouse_y)
+                    # logger.info(" - ", self.mouse_x_absolute, self.mouse_y_absolute)
+                    # logger.info(" - ", self.GetSize())
+                    # logger.info(" - ", self.tooltip_panel.GetPosition())
+                    # logger.info("   - view under mouse: ", self.mouse_over_plot)
                     self.tooltip_panel.SetPosition((self.mouse_x_absolute + 15, self.mouse_y_absolute - 20))
                     self.tooltip_panel.update_widget()
                     self.tooltip_panel.Show()
@@ -1029,10 +1031,10 @@ class VispyPanel(wx.Panel):
                     #         for wx_ in self.legend_panels:
                     #             wx_.Show()
                 # else:
-                #     print(" tooltip is showned but not timeout")
+                #     logger.info(" tooltip is showned but not timeout")
             else:
                 if self.tooltip_panel.IsShown():
-                    # print(" tooltip is showned but no mouse actions.... ", time.perf_counter_ns() - self.tooltip_timer.long_time_last_event, self.tooltip_timer.timeout_long_limit_ms * 1e6)
+                    # logger.info(" tooltip is showned but no mouse actions.... ", time.perf_counter_ns() - self.tooltip_timer.long_time_last_event, self.tooltip_timer.timeout_long_limit_ms * 1e6)
                     if self.tooltip_timer.has_time_out_long():
                         self.tooltip_panel.Hide()
 
@@ -1055,15 +1057,15 @@ class LegendPanel(wx.Panel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        print(" parent", self.GetParent())
-        print(" -- ", self.GetParent().show_legend_panel)
+        logger.info(" parent", self.GetParent())
+        logger.info(" -- ", self.GetParent().show_legend_panel)
 
         # self.SetBackgroundColour(wx.Colour(255, 255, 10, 50))
         # self.SetOwnBackgroundColour(wx.Colour(255, 10, 255, 50))
         self.SetTransparent(0)
         # self.SetWindowStyle(style=wx.TRANSPARENT_WINDOW)
         # self.Layout()
-        print(" --> ", self.GetBackgroundColour(), self.GetBackgroundStyle())
+        logger.info(" --> ", self.GetBackgroundColour(), self.GetBackgroundStyle())
 
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -1129,8 +1131,8 @@ class ToolTip(wx.Panel):
     def update_info(self, info_data: MousePointerInfo):
 
         if self.IsShown():
-            # print(" updating info data:: ", info_data)
-            # print(" - ", info_data.label)
+            # logger.info(" updating info data:: ", info_data)
+            # logger.info(" - ", info_data.label)
 
             self.label_txt = f"{info_data.label}"
             self.mouse_p_txt = f"x = {info_data.point_x:{info_data.print_notation}} [{info_data.x_unit}]  ,  "

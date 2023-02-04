@@ -3,6 +3,8 @@ import wx
 import wx.richtext
 
 import numpy as np
+import logging
+logger = logging.getLogger('wx_log')
 
 
 @dataclass
@@ -140,7 +142,7 @@ class RichtextPanel(wx.Panel):
         self.SetSizerAndFit(self.sizer)
 
     def clear_displayed_text(self, widget_index=0):
-        # print(" clearing displayed text:: ")
+        # logger.info(" clearing displayed text:: ")
         self.Freeze()
         widget = self.rich_text_widgets[widget_index]
         widget.Remove(self.insertion_pointers[widget_index], widget.GetLastPosition())
@@ -148,7 +150,7 @@ class RichtextPanel(wx.Panel):
         self.Thaw()
 
     def clear_text(self, widget_index=0):
-        print(" clearing text from buffer and display:: ")
+        logger.info(" clearing text from buffer and display:: ")
         self.clear_displayed_text(widget_index=widget_index)
         self.dynamic_text[widget_index][0][:] = 0
 
@@ -157,13 +159,13 @@ class RichtextPanel(wx.Panel):
         self._write_text_to_widget_from_buffer(widget_index)
 
     def add_mask(self, widget_index=0):
-        print(" adding mask:: ")
+        logger.info(" adding mask:: ")
 
     def set_static_pre_text(self, widget_index=0):
-        print(" set_static_pre_text:: ")
+        logger.info(" set_static_pre_text:: ")
 
     def set_static_post_text(self, widget_index=0):
-        print(" set_static_post_text:: ")
+        logger.info(" set_static_post_text:: ")
 
     def set_configuration(self, max_line_writes_per_frame=50, max_characters=50_000, text_length_shape=(450, 180)):
         self.max_line_writes_per_frame = max_line_writes_per_frame

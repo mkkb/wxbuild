@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+import logging
+logger = logging.getLogger('wx_log')
+
 import wx
 import wxbuild.components.custom_widgets.gradientbutton as wxgb
 import wxbuild.components.styles_colors as wxcolor
@@ -54,10 +57,22 @@ class WxWidget:
                     self.wx_object = self.input_element
 
             self.add_attributes_to_event_object(self.input_element)
+            # self.input_element.Bind(
+            #     wx.EVT_CHAR,
+            #     handler=self.parent.main_frame.input_state_edit,
+            # )
             self.input_element.Bind(
-                wx.EVT_CHAR,
+                wx.EVT_TEXT,
                 handler=self.parent.main_frame.input_state_edit,
             )
+            # self.input_element.Bind(
+            #     wx.EVT_TEXT_PASTE,
+            #     handler=self.parent.main_frame.input_state_edit,
+            # )
+            # self.input_element.Bind(
+            #     wx.EVT_TEXT_CUT,
+            #     handler=self.parent.main_frame.input_state_edit,
+            # )
             if self.widget.value_edit_function:
                 self.input_element.Bind(
                     wx.EVT_CHAR,
@@ -112,6 +127,7 @@ class WxWidget:
                 )
 
         # Mouse events, connects to "handle_user_event"
+        click_function_added = False
         if self.widget.mouse_click_function:
             if isinstance(self.wx_object, wx.Button) or isinstance(self.wx_object, wxgb.GradientButton):
                 self.add_attributes_to_event_object(self.wx_object)
@@ -119,24 +135,28 @@ class WxWidget:
                     event=wx.EVT_BUTTON,
                     handler=self.parent.main_frame.handle_user_event,
                 )
+                click_function_added = True
         if self.widget.mouse_rightclick_function:
             if isinstance(self.wx_object, wx.Button) or isinstance(self.wx_object, wxgb.GradientButton):
-                self.add_attributes_to_event_object(self.wx_object)
-                self.wx_object.Bind(
-                    event=wx.EVT_BUTTON,
-                    handler=self.parent.main_frame.handle_user_event,
-                )
                 self.wx_object.Bind(
                     event=wx.EVT_RIGHT_UP,
                     handler=self.parent.main_frame.handle_user_event,
                 )
+                if not click_function_added:
+                    self.add_attributes_to_event_object(self.wx_object)
+                    self.wx_object.Bind(
+                        event=wx.EVT_BUTTON,
+                        handler=self.parent.main_frame.handle_user_event,
+                    )
+                    click_function_added = True
         if self.widget.mouse_doubleclick_function:
-            if isinstance(self.wx_object, wx.Button) or isinstance(self.wx_object, wxgb.GradientButton):
-                self.add_attributes_to_event_object(self.wx_object)
-                self.wx_object.Bind(
-                    event=wx.EVT_BUTTON,
-                    handler=self.parent.main_frame.handle_user_event,
-                )
+            if not click_function_added:
+                if isinstance(self.wx_object, wx.Button) or isinstance(self.wx_object, wxgb.GradientButton):
+                    self.add_attributes_to_event_object(self.wx_object)
+                    self.wx_object.Bind(
+                        event=wx.EVT_BUTTON,
+                        handler=self.parent.main_frame.handle_user_event,
+                    )
         if self.widget.mouse_enter_function:
             self.add_attributes_to_event_object(self.wx_object)
             self.wx_object.Bind(
@@ -228,7 +248,7 @@ class WxWidget:
     def set_style_of_widget(self, widget, style=None):
         if style is None:
             style = self.widget.style_theme
-        # print(" -----> ", self.widget.name, self.widget.color_scheme, self.widget.text_scheme, self.widget.style_theme, type(widget))
+        # logger.info(" -----> ", self.widget.name, self.widget.color_scheme, self.widget.text_scheme, self.widget.style_theme, type(widget))
         if isinstance(widget, wxgb.GradientButton):
             color_arr = wxcolor.get_colors_from_style(style)
             # color_arr = wxcolor.get_colors_from_style(self.widget.style_theme)
@@ -237,13 +257,13 @@ class WxWidget:
                 foregroundcolour=color_arr[-1]
             )
         elif isinstance(widget, wx.Choice):
-            print("    ----> CHOICE")
+            logger.info("    ----> CHOICE")
         elif isinstance(widget, wx.Button):
-            print("    ----> BUTTON")
+            logger.info("    ----> BUTTON")
         elif isinstance(widget, wx.TextCtrl):
-            print("    ----> TEXTCTRL")
+            logger.info("    ----> TEXTCTRL")
         elif isinstance(widget, wx.StaticText):
-            print("    ----> STATICTEXT")
+            logger.info("    ----> STATICTEXT")
 
 
 @dataclass

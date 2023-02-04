@@ -7,10 +7,12 @@ import tempfile
 import json
 from threading import Thread
 from dataclasses import dataclass
+import logging
 
 import numpy as np
 import wx
 import psutil
+import string
 
 import wxbuild.components.widget as wxw
 import wxbuild.components.panel_with_state as wxp
@@ -19,6 +21,7 @@ import wxbuild.components.panel_richtext as wxr
 import wxbuild.master_abstract as master
 from wxbuild.components.styles import Styles
 
+logger = logging.getLogger('wx_log')
 
 @dataclass
 class AppConfiguration:
@@ -212,7 +215,7 @@ class MainFrame(wx.Frame):
     #
     # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers # Thread workers
     def init_thread_worker(self, run_func, worker_id=-1, callback_func=None, run_once=True, kwargs=None):
-        print("\nAppending worker:")
+        logger.info("\nAppending worker:")
         worker_table_index = self.get_thread_worker_table_index_by_id(worker_id)
 
         # Create a new thread
@@ -221,7 +224,7 @@ class MainFrame(wx.Frame):
                 worker_id = wx.NewId()
 
             if callback_func is not None:
-                print(" - connecting worker to callback function:", callback_func)
+                logger.info(" - connecting worker to callback function:", callback_func)
                 self.Connect(-1, -1, worker_id, callback_func)
                 call_event = True
             else:
@@ -230,15 +233,15 @@ class MainFrame(wx.Frame):
                 func=run_func, parent=self, wx_id=worker_id, run_once=run_once, kwargs=kwargs, call_event=call_event
             )
 
-            print(" - thread worker: ", thread_worker, worker_id)
+            logger.info(" - thread worker: ", thread_worker, worker_id)
             self.thread_worker_table.append(thread_worker)
         else:
-            print(" - worker already exists...", self.thread_worker_table)
+            logger.info(" - worker already exists...", self.thread_worker_table)
             worker = self.thread_worker_table[worker_table_index]
             if worker.is_stopped():
-                print('  -- Worker is finished and dead...')
+                logger.info('  -- Worker is finished and dead...')
             else:
-                print('  -- Worker is actually running...')
+                logger.info('  -- Worker is actually running...')
 
     def delete_thread_worker(self, worker_id):
         worker_table_index = self.get_thread_worker_table_index_by_id(worker_id)
@@ -254,9 +257,6 @@ class MainFrame(wx.Frame):
 
     def kill_all_workers(self, worker_id_self: int) -> None:
         worker_ids = [worker.get_wx_id() for worker in self.thread_worker_table if worker.get_wx_id() != worker_id_self]
-        # print("Ongoing workers: ")
-        # for i, worker in enumerate(self.thread_worker_table):
-        #     print(" -", i, worker.wx_id, worker.running, worker._is_stopped)
         for w_id in worker_ids:
             self.delete_thread_worker(w_id)
 
@@ -334,7 +334,7 @@ class MainFrame(wx.Frame):
                 panel.post_init()
 
             else:
-                print("  ->  is not a panel???", parent)
+                logger.warning("  ->  is not a panel???", parent)
                 # wxv.populate_sizer(element)
 
             if panel is not None:
@@ -363,9 +363,6 @@ class MainFrame(wx.Frame):
     #
     # Respond to user actions
     def handle_user_event(self, event):
-        # print("\n", "-"*100, "\n USER ACTION:", event.EventObject.wx_widget.widget.name)
-        # print(" .. ", event.EventType, vars(event))
-        # print("-"*100)
         event_type = ''
         widget_name = event.EventObject.wx_widget.widget.name
         panel_name = event.EventObject.wx_widget.parent.panel_name
@@ -436,12 +433,53 @@ class MainFrame(wx.Frame):
             event.EventObject.wx_widget.set_value_by_event(value=None)
             state_key = f'state__{event.EventObject.wx_widget.parent.panel_name}' \
                         f'__{event.EventObject.wx_widget.widget.name}'
+        elif event.EventType == wx.EVT_TEXT.typeId:
+            wx.CallAfter(self.validate_input_field_before_state_edit, widget=event.EventObject)
+            event.Skip()
+            return
+        # elif event.EventType == wx.EVT_TEXT_PASTE.typeId:
+        #     wx.CallAfter(self.validate_input_field_before_state_edit, widget=event.EventObject, event=event)
+        #     event.Skip()
+        #     return
+        # elif event.EventType == wx.EVT_TEXT_CUT.typeId:
+        #     wx.CallAfter(self.validate_input_field_before_state_edit, widget=event.EventObject, event=event)
+        #     event.Skip()
+        #     return
         else:
             event.Skip()
             return
 
+        # CharValidator
+        # wx.EVT_TEXT, self.on_text
+        # wx.CallAfter(self.validate_input_field_before_state_edit, widget=event.EventObject, event=event)
+
         self.set_state_value(state_key=state_key, value=event.EventObject.wx_widget.get_value())
         event.Skip()
+
+    def validate_input_field_before_state_edit(self, widget):
+        if hasattr(widget.wx_widget.widget, "widget_type"):
+            if 'input_' in widget.wx_widget.widget.widget_type:
+                old_value = widget.wx_widget.get_value()
+                new_value = widget.wx_widget.input_element.GetValue()
+                bad_value = False
+                if 'input_int' in widget.wx_widget.widget.widget_type:
+                    try:
+                        new_value = int(new_value)
+                    except ValueError:
+                        bad_value = True
+                elif 'input_float' in widget.wx_widget.widget.widget_type:
+                    try:
+                        new_value = float(new_value)
+                    except ValueError:
+                        bad_value = True
+
+                if bad_value:
+                    widget.wx_widget.input_element.SetValue(f"{old_value}")
+                else:
+                    widget.wx_widget.set_value_by_event(value=new_value)
+                    state_key = f'state__{widget.wx_widget.parent.panel_name}' \
+                                f'__{widget.wx_widget.widget.name}'
+                    self.set_state_value(state_key=state_key, value=new_value)
 
     #
     # Widget related actions
@@ -479,22 +517,11 @@ class MainFrame(wx.Frame):
         if not self.config_window_open:
             self.config_window_open = True
             for key, item in setup_dict['content'].items():
-                # print(" -> ", type(item), item, isinstance(item, str), isinstance(item, int), isinstance(item, classmethod), item == str, item == int, item == float)
                 if not isinstance(item, str):
                     state_key = f"{setup_dict['state_key_prefix'].lower()}_{key.lower()}"
-                    print(" key:: ", key, item, state_key)
+                    logger.info(" key:: ", key, item, state_key)
                 else:
                     pass
-
-            # dlg = wx.FontDialog(self,wx.FontData())
-            # if dlg.ShowModal() == wx.ID_OK:
-            #     data = dlg.GetFontData()
-            #     font = data.GetChosenFont()
-            #     # self.text.SetFont(font)
-            #     print(" data:: ", data)
-            #     print(" font:: ", font)
-            # dlg.Destroy()
-            #
 
             if 'title' in setup_dict:
                 title = setup_dict['title']
@@ -577,6 +604,46 @@ class WorkerThread(Thread):
 
     def is_stopped(self) -> bool:
         return not self.is_alive()
+
+
+class CharValidator(wx.PyValidator):
+    ''' Validates data as it is entered into the text controls. '''
+
+    #----------------------------------------------------------------------
+    def __init__(self, flag):
+        wx.PyValidator.__init__(self)
+        self.flag = flag
+        self.Bind(wx.EVT_CHAR, self.OnChar)
+
+    #----------------------------------------------------------------------
+    def Clone(self):
+        '''Required Validator method'''
+        return CharValidator(self.flag)
+
+    #----------------------------------------------------------------------
+    def Validate(self, win):
+        return True
+
+    #----------------------------------------------------------------------
+    def TransferToWindow(self):
+        return True
+
+    #----------------------------------------------------------------------
+    def TransferFromWindow(self):
+        return True
+
+    #----------------------------------------------------------------------
+    def OnChar(self, event):
+        keycode = int(event.GetKeyCode())
+        if keycode < 256:
+            #print keycode
+            key = chr(keycode)
+            #print key
+            if self.flag == 'no-alpha' and key in string.ascii_letters:
+                return
+            if self.flag == 'no-digit' and key in string.digits:
+                return
+        event.Skip()
 
 
 #
@@ -739,17 +806,15 @@ class PopupWindowConfiguration(wx.Frame):
         self.Show()
 
     def _populate_content(self):
-        print("\nPOPULATING CONFIG WINDOW:::")
-
+        logger.info("\nPOPULATING CONFIG WINDOW:::")
         medium_btn_height = 27
         sizer = wx.BoxSizer(wx.VERTICAL)
         staticboxsizer = None
 
         if isinstance(self.content, dict):
             for key, item in self.content.items():
-                # print(" -> ", type(item), item, isinstance(item, str), isinstance(item, int), isinstance(item, classmethod), item == str, item == int, item == float)
                 if not isinstance(item, str):
-                    print("  key:: ", key, item)
+                    logger.info("  key:: ", key, item)
 
                     wxtype = None
                     widget_dataclass = WxComponents.widget
@@ -805,7 +870,7 @@ class PopupWindowConfiguration(wx.Frame):
                         #         size=(-1, medium_btn_height),
                         #     )
                         # )
-                    print("  key:: ", key, item, ' ----- string')
+                    logger.info("  key:: ", key, item, ' ----- string')
 
             if isinstance(staticboxsizer, wx.StaticBoxSizer):
                 sizer.Add(staticboxsizer, 1, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 20)
