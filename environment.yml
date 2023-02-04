@@ -4,7 +4,9 @@ channels:
   - anaconda
 dependencies:
   - python=3.10.9
-  - vispy=0.7.3
   - wxpython=4.2.0
   - numpy
   - psutil
+  - pip
+#  - pip:
+#      - -e git+https://github.com/mkkb/vispy.git@dev_073#egg=vispy

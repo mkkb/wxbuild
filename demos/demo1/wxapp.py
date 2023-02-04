@@ -31,6 +31,7 @@ def main():
     frm.populate_frame(layout_tuple)
 
     frm.Show()
+
     app.MainLoop()
 
 

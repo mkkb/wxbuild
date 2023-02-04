@@ -2,11 +2,6 @@ import time
 from dataclasses import dataclass
 import wx
 
-import sys
-from wxbuild.vispy_fixes import ptime
-sys.modules["vispy.util.ptime"] = ptime
-from wxbuild.vispy_fixes import line
-sys.modules["vispy.visuals.line"] = line
 
 from vispy import scene
 import numpy as np
