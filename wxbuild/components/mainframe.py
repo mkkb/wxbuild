@@ -1,5 +1,4 @@
 import datetime
-import logging
 import sys
 import time
 import os
@@ -8,6 +7,7 @@ import json
 from threading import Thread
 from dataclasses import dataclass
 import logging
+logger = logging.getLogger('wx_log')
 
 import numpy as np
 import wx
@@ -21,7 +21,6 @@ import wxbuild.components.panel_richtext as wxr
 import wxbuild.master_abstract as master
 from wxbuild.components.styles import Styles
 
-logger = logging.getLogger('wx_log')
 
 @dataclass
 class AppConfiguration:

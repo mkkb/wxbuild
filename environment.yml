@@ -1,9 +1,10 @@
 name: wxbuild
 channels:
   - conda-forge
+  - anaconda
 dependencies:
-  - python=3.10
-  - vispy=0.10.0
+  - python=3.10.9
+  - vispy=0.7.3
+  - wxpython=4.2.0
   - numpy
-  - wxpython
   - psutil
