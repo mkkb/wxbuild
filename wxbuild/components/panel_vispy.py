@@ -454,6 +454,9 @@ class VispyPanel(wx.Panel):
             self.legend_panels.append(panel_)
             panel_.Hide()
 
+        # Idle function iterations needed before stating that initialization is complete
+        self.idle_runs_at_init_lim = 5
+
         self.N = 64
         self.data_info = []
         self.data_sets = {  # One set per viewbox
@@ -747,9 +750,9 @@ class VispyPanel(wx.Panel):
 
     def on_idle(self, event):
         # Hack to initialize vispy plot
-        if self.initialized < 100:
+        if self.initialized < self.idle_runs_at_init_lim:
             self.initialized += 1
-            if self.initialized == 100:
+            if self.initialized == self.idle_runs_at_init_lim:
                 if hasattr(self.main_frame, 'master'):
                     if hasattr(self.main_frame.master, 'post_vispy_init'):
                         self.main_frame.master.post_vispy_init()
