@@ -81,7 +81,7 @@ parent='main_frame',
                     name=f'ctrl_{i}_0',
                     widget_type=wx_type,
                     font_size=2,
-                    end_space=10,
+                    end_space=2,
                     mouse_click_function=True,
                 )
             for i, wx_type in enumerate([
@@ -95,7 +95,7 @@ parent='main_frame',
                     name=f'ctrl_{i}_1',
                     widget_type=wx_type,
                     font_size=2,
-                    end_space=10,
+                    end_space=2,
                     mouse_click_function=True,
                 )
             for i, wx_type in enumerate([
@@ -109,7 +109,7 @@ parent='main_frame',
                     name=f'ctrl_{i}_2',
                     widget_type=wx_type,
                     font_size=2,
-                    end_space=10,
+                    end_space=2,
                     mouse_click_function=True,
                 )
             for i, wx_type in enumerate([

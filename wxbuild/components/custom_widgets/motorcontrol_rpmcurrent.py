@@ -56,13 +56,23 @@ class MotorControlRpmCurrent(wx.Control):
         self.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave)
         self.Bind(wx.EVT_ENTER_WINDOW, self.OnMouseEnter)
 
-        self.rpm_value = 0
+        self.motor_enabled = False
+        self.rpm_value = 0.5
         self.rpm_setpoint_a = 0.3
         self.rpm_setpoint_b = 0.8
-        self.torque_value = 0
+        self.torque_value = 0.2
         self.torque_setpoint_a = 0.3
-        self.torque_setpoint_b = 0.7
+        self.torque_setpoint_b = 0.6
         self.torque_setpoint_c = 0.8
+        self.rpm_startup_color = wx.Colour('#006607')
+        self.rpm_normal_color = wx.Colour('#57ff26')
+        self.rpm_alarm_color = wx.Colour('#ff544a')
+        self.rpm_setpoint_color = wx.Colour('#006907')
+        self.torque_alarm_selected = False  # False => low alarm | True => High alarm
+        self.torque_startup_color = wx.Colour('#ffb830')
+        self.torque_normal_color = wx.Colour('#57ff26')
+        self.torque_alarm_color = wx.Colour('#ff544a')
+        self.torque_setpoint_color = wx.Colour('#006907')
 
         self._mouseAction = None
         self.SetBitmapLabel(bitmap)
@@ -71,7 +81,7 @@ class MotorControlRpmCurrent(wx.Control):
         self._alignment = align
 
         self.InheritAttributes()
-        size = wx.Size(85, 40)
+        size = wx.Size(85, 27)
         self.SetInitialSize(size)
 
         self.SetBaseColours()
@@ -87,10 +97,10 @@ class MotorControlRpmCurrent(wx.Control):
         self.Refresh()
 
     def SetBaseColours(self):
-        self._disable_color_light = wx.Colour(90, 90, 90, 100)
-        self._enable_color_light = wx.Colour(255, 90, 90, 200)
-        self._enable_color = wx.Colour(255, 50, 50, 200)
-        self._disable_color = wx.Colour(50, 50, 50, 100)
+        self._disable_color_light = wx.Colour(90, 90, 90, 255)
+        self._enable_color_light = wx.Colour(255, 90, 90, 255)
+        self._enable_color = wx.Colour(255, 50, 50, 255)
+        self._disable_color = wx.Colour(200, 200, 200, 255)
         self._no_color = wx.Colour(0, 0, 0, 0)
 
     def LightColour(self, colour, percent):
@@ -137,70 +147,183 @@ class MotorControlRpmCurrent(wx.Control):
 
         dc = wx.BufferedPaintDC(self)
         gc = wx.GraphicsContext.Create(dc)
-        dc.SetBackground(wx.Brush(self.GetParent().GetBackgroundColour()))
+        # dc.SetBackground(wx.Brush(self.GetParent().GetBackgroundColour()))
+        dc.SetBackground(wx.Brush(wx.Colour(230, 230, 255, 255)))
         dc.Clear()
 
         clientRect = self.GetClientRect()
+        x0, y0, w_, h_ = clientRect
 
-        c0 = wx.Colour(30, 200, 40)
-        # c1 = wx.Colour(30, 150, 40)
-        c1 = wx.Colour(0, 40, 0)
+        paths = []
+        brushes = []
+        pens = []
 
-        # xc = 5
-        # yc = 5
-        # r0 = 10
-        # r1 = 14
-        #
-        # # gc.AddArc(x=xc, y=yc, r=15, startAngle=0, endAngle=275, clockwise=True)
-        # gc.SetBrush(wx.Brush(c1))
-        # gc.DrawEllipse(x=xc, y=yc, w=r1, h=r1)
-        # gc.DrawEllipse(x=xc, y=yc+20, w=r1, h=r1)
-        #
-        # gc.SetBrush(wx.Brush(c0))
-        # gc.DrawEllipse(x=xc + 2, y=yc + 2, w=r0, h=r0)
-        # gc.SetBrush(wx.Brush(wx.WHITE))
-        # gc.DrawEllipse(x=xc + 2, y=yc + 22, w=r0, h=r0)
+        if self.motor_enabled:
+            if self.rpm_value > self.rpm_setpoint_a:
+                rpm_low_color = self.rpm_normal_color
+            else:
+                rpm_low_color = self.rpm_startup_color
+            rpm_high_color = self._disable_color
 
-        gc.SetPen(wx.Pen(wx.Colour(0, 0, 0, 255), width=1, style=wx.PENSTYLE_SOLID))
-        gc.SetBrush(wx.Brush(wx.CYAN))
+            if self.torque_value > self.torque_setpoint_a:
+                torque_low_color = self.torque_normal_color
+            else:
+                torque_low_color = self.torque_startup_color
+            torque_high_color = self._disable_color
+            rpm_setpoint_color = self.rpm_setpoint_color
+            torque_setpoint_color = self.torque_setpoint_color
+        else:
+            rpm_low_color = self._disable_color_light
+            rpm_high_color = self._disable_color
+            torque_low_color = self._disable_color_light
+            torque_high_color = self._disable_color
+            rpm_setpoint_color = self._disable_color_light
+            torque_setpoint_color = self._disable_color_light
 
-        x = 3
-        y = 5
-        w = 15
-        h = 15
-        radius = 5
-        gc.DrawRoundedRectangle(x, y, w, h, radius)
-        gc.DrawRoundedRectangle(x, y + 18, w, h, radius)
+        if self.torque_alarm_selected:
+            torque_setpoint_color_b = torque_setpoint_color
+            torque_setpoint_color_c = self._disable_color_light
+        else:
+            torque_setpoint_color_b = self._disable_color_light
+            torque_setpoint_color_c = torque_setpoint_color
 
-        x = 13
-        y = 9
-        w = 70
-        h = 8
-        gc.DrawRectangle(x, y, w, h)
-        gc.DrawRectangle(x, y + 18, w, h)
+        if self._mouseAction == HOVER:
+            hover_extra = (clientRect[3] * 0.03) / 2
+            # enable_color = self._enable_color_light
+            # disable_color = self._disable_color_light
+        else:
+            hover_extra = 0
+            # enable_color = self._enable_color
+            # disable_color = self._disable_color
 
-        gc.SetBrush(wx.Brush(wx.RED))
-        x = 60
-        y = 9
-        w = 2
-        h = 16
-        gc.DrawRectangle(x, y - 5, w, h)
-        gc.DrawRectangle(x - 30, y + 18 - 5, w, h)
+        r = h_ * 0.2
 
+        x_1 = x0 + r*0.6 + 3 - hover_extra
+        y_1 = y0 + r + 1 - hover_extra
+        x_2 = x_1 + r*0.3
+        y_2 = y_1 - r*0.5
 
-        gc.SetPen(wx.Pen(wx.Colour(0,0,0,0)))
-        gc.SetBrush(wx.Brush(wx.Colour(255,0,0,50)))
-        path = gc.CreatePath()
-        path.AddCircle(50.0, 50.0, 50.0)
-        path.MoveToPoint(0.0, 50.0)
-        path.AddLineToPoint(100.0, 50.0)
-        path.MoveToPoint(50.0, 0.0)
-        path.AddLineToPoint(50.0, 100.0)
-        path.CloseSubpath()
-        path.AddRectangle(25.0, 25.0, 50.0, 50.0)
+        y_offset = y_1 * 2.
+        meter_width = w_*0.9
 
-        # gc.StrokePath(path)
-        gc.DrawPath(path)
+        # ----- Creating RPM bar ---------------------------------------------------------------
+        rpm_setpoint_ = meter_width * (1 - self.rpm_setpoint_a) * self.rpm_setpoint_b
+        x_rpm_setpoint = rpm_setpoint_ + x_2
+
+        path1 = gc.CreatePath()
+        path1.AddCircle(x=x_1, y=y_1, r=r)
+
+        if self.rpm_value > self.rpm_setpoint_a:
+            # l = (1 - self.rpm_setpoint_a)
+            l_0 = (self.rpm_value - self.rpm_setpoint_a)/(1 - self.rpm_setpoint_a) * meter_width
+            l_1 = (1 - self.rpm_setpoint_a) / (1 - self.rpm_setpoint_a) * meter_width
+
+            path2 = gc.CreatePath()
+            path2.AddRectangle(x=x_2, y=y_2, w=l_0, h=r * 1.1, )  # radius=r*0.8)
+
+            path3 = gc.CreatePath()
+            path3.AddRectangle(x=x_2 + l_0, y=y_2, w=l_1, h=r * 1.1, )
+
+            #
+            paths.append(path2)
+            paths.append(path1)
+            paths.append(path3)
+
+            brushes.append(wx.Brush(rpm_low_color))
+            brushes.append(None)
+            brushes.append(wx.Brush(rpm_high_color))
+
+            pens.append(wx.Pen(self._no_color, width=3, style=wx.PENSTYLE_SOLID), )
+            pens.append(None)
+            pens.append(None)
+
+        else:
+            path2 = gc.CreatePath()
+            path2.AddRectangle(x=x_2, y=y_2, w=meter_width, h=r * 1.1)
+
+            #
+            paths.append(path2)
+            paths.append(path1)
+
+            brushes.append(wx.Brush(rpm_high_color))
+            brushes.append(wx.Brush(rpm_low_color))
+
+            pens.append(wx.Pen(self._no_color, width=3, style=wx.PENSTYLE_SOLID), )
+            pens.append(None)
+
+        path4 = gc.CreatePath()
+        path4.AddRectangle(x=x_rpm_setpoint, y=y_1 - r * 1.1, w=r * 0.1, h=r * 2.0)
+
+        paths.append(path4)
+        brushes.append(wx.Brush(self._no_color))
+        pens.append(wx.Pen(rpm_setpoint_color, width=1, style=wx.PENSTYLE_SOLID), )
+
+        # path1.AddRoundedRectangle(x=xB_1, y=yB_1, w=r * 1.5, h=r, radius=r)
+
+        # ----- Creating Torque bar ---------------------------------------------------------------
+        torque_setpoint_ = meter_width * (1 - self.torque_setpoint_a) * self.torque_setpoint_b
+        x_torque_setpoint_b = torque_setpoint_ + x_2
+        torque_setpoint_ = meter_width * (1 - self.torque_setpoint_a) * self.torque_setpoint_c
+        x_torque_setpoint_c = torque_setpoint_ + x_2
+
+        path1 = gc.CreatePath()
+        path1.AddCircle(x=x_1, y=y_1+y_offset, r=r)
+
+        if self.torque_value > self.torque_setpoint_a:
+            l_0 = (self.torque_value - self.torque_setpoint_a) / (1 - self.torque_setpoint_a) * meter_width
+            l_1 = (1 - self.torque_setpoint_a) / (1 - self.torque_setpoint_a) * meter_width
+
+            path2 = gc.CreatePath()
+            path2.AddRectangle(x=x_2, y=y_2+y_offset, w=l_0, h=r * 1.1, )  # radius=r*0.8)
+
+            path3 = gc.CreatePath()
+            path3.AddRectangle(x=x_2 + l_0, y=y_2+y_offset, w=l_1, h=r * 1.1, )
+
+            #
+            paths.append(path2)
+            paths.append(path1)
+            paths.append(path3)
+
+            brushes.append(wx.Brush(torque_low_color))
+            brushes.append(None)
+            brushes.append(wx.Brush(torque_high_color))
+
+            pens.append(wx.Pen(self._no_color, width=3, style=wx.PENSTYLE_SOLID), )
+            pens.append(None)
+            pens.append(None)
+
+        else:
+            path2 = gc.CreatePath()
+            path2.AddRectangle(x=x_2, y=y_2+y_offset, w=meter_width, h=r * 1.1)
+
+            #
+            paths.append(path2)
+            paths.append(path1)
+
+            brushes.append(wx.Brush(torque_high_color))
+            brushes.append(wx.Brush(torque_low_color))
+
+            pens.append(wx.Pen(self._no_color, width=3, style=wx.PENSTYLE_SOLID), )
+            pens.append(None)
+
+        path4 = gc.CreatePath()
+        path4.AddRectangle(x=x_torque_setpoint_b, y=y_1 - r * 1.1 +y_offset, w=r * 0.1, h=r * 2.0)
+        path5 = gc.CreatePath()
+        path5.AddRectangle(x=x_torque_setpoint_c, y=y_1 - r * 1.1 + y_offset, w=r * 0.1, h=r * 2.0)
+
+        paths.append(path4)
+        paths.append(path5)
+        brushes.append(wx.Brush(self._no_color))
+        brushes.append(wx.Brush(self._no_color))
+        pens.append(wx.Pen(torque_setpoint_color_b, width=1, style=wx.PENSTYLE_SOLID), )
+        pens.append(wx.Pen(torque_setpoint_color_c, width=1, style=wx.PENSTYLE_SOLID), )
+
+        for i in range(len(paths)):
+            if pens[i] is not None:
+                gc.SetPen(pens[i])
+            if brushes[i] is not None:
+                gc.SetBrush(brushes[i])
+            gc.DrawPath(paths[i])
 
     def OnMouseEnter(self, event):
         """
@@ -242,7 +365,6 @@ class MotorControlRpmCurrent(wx.Control):
         path.CloseSubpath()
         return path
 
-
     def SetInitialSize(self, size=None):
         """
         Given the current font and bezel width settings, calculate
@@ -258,7 +380,6 @@ class MotorControlRpmCurrent(wx.Control):
 
     SetBestSize = SetInitialSize
 
-
     def AcceptsFocus(self):
         """
         Can this window be given focus by mouse click?
@@ -268,7 +389,6 @@ class MotorControlRpmCurrent(wx.Control):
 
         return self.IsShown() and self.IsEnabled()
 
-
     def GetDefaultAttributes(self):
         """
         Overridden base class virtual. By default we should use
@@ -276,7 +396,6 @@ class MotorControlRpmCurrent(wx.Control):
         """
 
         return wx.Button.GetClassDefaultAttributes()
-
 
     def ShouldInheritColours(self):
         """
@@ -287,7 +406,6 @@ class MotorControlRpmCurrent(wx.Control):
         """
 
         return False
-
 
     def Enable(self, enable=True):
         """
@@ -301,6 +419,26 @@ class MotorControlRpmCurrent(wx.Control):
         wx.Control.Enable(self, enable)
         self.Refresh()
 
+    def SetMotorEnable(self, enable: bool):
+        self.motor_enabled = enable
+
+    def SetRpmValue(self, rpm_value: float):
+        self.rpm_value = min(1.0, max(0.0, rpm_value))
+
+    def SetRpmLimitValues(self, a_lim: float, b_lim: float):
+        self.rpm_setpoint_a = min(1.0, max(0.0, a_lim))
+        self.rpm_setpoint_b = min(1.0, max(0.0, b_lim))
+
+    def SetTorqueValue(self, torque_value: float):
+        self.torque_value = min(1.0, max(0.0, torque_value))
+
+    def SetTorqueLimitValues(self, a_lim: float, b_lim: float, c_lim: float):
+        self.torque_setpoint_a = min(1.0, max(0.0, a_lim))
+        self.torque_setpoint_b = min(1.0, max(0.0, b_lim))
+        self.torque_setpoint_c = min(1.0, max(0.0, c_lim))
+
+    def SetTorqueAlarmSelected(self, select_low: bool):
+        self.torque_alarm_selected = select_low
 
     def SetForegroundColour(self, colour):
         """
@@ -314,6 +452,17 @@ class MotorControlRpmCurrent(wx.Control):
         wx.Control.SetForegroundColour(self, colour)
         self.Refresh()
 
+    def SetRpmColors(self, startup: str, normal: str, alarm: str, setpoint: str):
+        self.rpm_startup_color = wx.Colour(startup)
+        self.rpm_normal_color = wx.Colour(normal)
+        self.rpm_alarm_color = wx.Colour(alarm)
+        self.rpm_setpoint_color = wx.Colour(setpoint)
+
+    def SetTorqueColors(self, startup: str, normal: str, alarm: str, setpoint: str):
+        self.torque_startup_color = wx.Colour(startup)
+        self.torque_normal_color = wx.Colour(normal)
+        self.torque_alarm_color = wx.Colour(alarm)
+        self.torque_setpoint_color = wx.Colour(setpoint)
 
     def DoGetBestSize(self):
         """

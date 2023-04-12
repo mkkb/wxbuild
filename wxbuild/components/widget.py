@@ -147,7 +147,8 @@ class WxWidget:
             if isinstance(self.wx_object, wx.Button) \
                     or isinstance(self.wx_object, wxgb.GradientButton) \
                     or isinstance(self.wx_object, wxmas.MotorControlAlarmState) \
-                    or isinstance(self.wx_object, wxmds.MotorControlDriveState):
+                    or isinstance(self.wx_object, wxmds.MotorControlDriveState)\
+                    or isinstance(self.wx_object, wxmcrc.MotorControlRpmCurrent):
                 self.add_attributes_to_event_object(self.wx_object)
                 self.wx_object.Bind(
                     event=wx.EVT_BUTTON,

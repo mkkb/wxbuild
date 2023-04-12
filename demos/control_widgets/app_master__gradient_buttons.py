@@ -25,6 +25,7 @@ class GradientButtonMaster(master.Master):
     def idle_function(self):
         self.update_ctrl_widget__state()
         self.update_ctrl_widget_alarm()
+        self.update_ctrl_widget_rpm_and_current()
 
     def handle_user_event(self, event_type, name, panel):
         print(f" HANDLING USER EVENT:::  type: {event_type} | name: {name} | panel: {panel}")
@@ -72,3 +73,25 @@ class GradientButtonMaster(master.Master):
                     self.test_flag__alarm += 2 ** i
                     break
         # print("   next state value will be = ", self.test_flag)
+
+    def update_ctrl_widget_rpm_and_current(self):
+        name, panel = 'ctrl_1_0', 'motorctrls'
+        widget = self.main_frame.get_widget_by_names(widget_name=name, panel_name=panel)
+
+        if not widget.motor_enabled:
+            widget.SetMotorEnable(True)
+
+        widget.SetRpmValue(self.test_flag__run_rpm)
+        if self.test_flag__run_rpm >= 1.0:
+            self.test_flag__run_rpm = 0
+        else:
+            self.test_flag__run_rpm += 0.009
+
+        widget.SetTorqueValue(self.test_flag__run_torque)
+        if self.test_flag__run_torque >= 1.0:
+            self.test_flag__run_torque = 0
+        else:
+            self.test_flag__run_torque += 0.007
+
+        print("Setting new Rpm and Torque values: ", self.test_flag__run_rpm, self.test_flag__run_torque)
+        self.main_frame.Layout()
