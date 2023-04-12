@@ -4,6 +4,9 @@ logger = logging.getLogger('wx_log')
 
 import wx
 import wxbuild.components.custom_widgets.gradientbutton as wxgb
+import wxbuild.components.custom_widgets.motorcontrol_rpmcurrent as wxmcrc
+import wxbuild.components.custom_widgets.motorcontrol_drivestate as wxmds
+import wxbuild.components.custom_widgets.motorcontrol_alarmstate as wxmas
 import wxbuild.components.styles_colors as wxcolor
 import wxbuild.components.styles_text as wxtext
 
@@ -121,6 +124,18 @@ class WxWidget:
                     self.wx_object = self.add_label_in_front_of_input_field(self.input_element, self.widget)
                 else:
                     self.wx_object = self.input_element
+            elif self.widget.widget_type == 'MotorControlRpmCurrent':
+                self.wx_object = wxmcrc.MotorControlRpmCurrent(
+                    self.parent, -1, size=(-1, -1)
+                )
+            elif self.widget.widget_type == 'MotorControlAlarmState':
+                self.wx_object = wxmas.MotorControlAlarmState(
+                    self.parent, -1, size=(-1, -1)
+                )
+            elif self.widget.widget_type == 'MotorControlDriveState':
+                self.wx_object = wxmds.MotorControlDriveState(
+                    self.parent, -1, size=(-1, -1)
+                )
             else:
                 self.wx_object = wx.StaticText(
                     self.parent, -1, label=f'"error - couldnt create widget - {self.widget.label}"'
@@ -129,7 +144,10 @@ class WxWidget:
         # Mouse events, connects to "handle_user_event"
         click_function_added = False
         if self.widget.mouse_click_function:
-            if isinstance(self.wx_object, wx.Button) or isinstance(self.wx_object, wxgb.GradientButton):
+            if isinstance(self.wx_object, wx.Button) \
+                    or isinstance(self.wx_object, wxgb.GradientButton) \
+                    or isinstance(self.wx_object, wxmas.MotorControlAlarmState) \
+                    or isinstance(self.wx_object, wxmds.MotorControlDriveState):
                 self.add_attributes_to_event_object(self.wx_object)
                 self.wx_object.Bind(
                     event=wx.EVT_BUTTON,
@@ -182,6 +200,7 @@ class WxWidget:
     def set_font(widget, font):
         if isinstance(widget, wxgb.GradientButton):
             widget.SetOwnFont(font)
+
     def get_label(self):  # TODO
         pass
 
@@ -306,6 +325,9 @@ class Widget:
 @dataclass(init=False, repr=False, eq=False, frozen=True)
 class Widgets:
     """All supported widgets"""
+    MotorCtrlRpmCurrent: str = 'MotorControlRpmCurrent'
+    MotorControlAlarmState: str = 'MotorControlAlarmState'
+    MotorControlDriveState: str = 'MotorControlDriveState'
     GradientButton: str = 'GradientButton'
     Button: str = 'Button'
     input_float_with_enable: str = 'input_float_with_enable'

@@ -27,8 +27,15 @@ class AppConfiguration:
     """Main frame configuration, set title, folder location, etc..."""
     title: str = 'wxDemo'
     extra_folder: str = ""
+
+    # TODO, change this to  %AppData%  |  %LocalAppData%  |  %ProgramData% ??
+    # os.getenv('APPDATA')
+    # sendto_dir = path.expandvars(r'%APPDATA%\Microsoft\Windows\SendTo')
+    # dumps_dir = path.expandvars(r'%LOCALAPPDATA%\CrashDumps')
+
     state_folder: str = rf'{tempfile.gettempdir()}{os.path.sep}{title}{os.path.sep}'
     state_path: str = rf'{state_folder}{os.path.sep}state.json'
+
     status_bar_default_text: str = f'Welcome to {title}'
     monitor_resources: bool = False
     bc_color: str = 'white'
