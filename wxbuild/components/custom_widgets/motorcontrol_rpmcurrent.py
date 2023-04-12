@@ -147,8 +147,8 @@ class MotorControlRpmCurrent(wx.Control):
 
         dc = wx.BufferedPaintDC(self)
         gc = wx.GraphicsContext.Create(dc)
-        # dc.SetBackground(wx.Brush(self.GetParent().GetBackgroundColour()))
-        dc.SetBackground(wx.Brush(wx.Colour(230, 230, 255, 255)))
+        dc.SetBackground(wx.Brush(self.GetParent().GetBackgroundColour()))
+        # dc.SetBackground(wx.Brush(wx.Colour(230, 230, 255, 255)))
         dc.Clear()
 
         clientRect = self.GetClientRect()
@@ -196,7 +196,7 @@ class MotorControlRpmCurrent(wx.Control):
             # enable_color = self._enable_color
             # disable_color = self._disable_color
 
-        r = h_ * 0.2
+        r = h_ * 0.18
 
         x_1 = x0 + r*0.6 + 3 - hover_extra
         y_1 = y0 + r + 1 - hover_extra
