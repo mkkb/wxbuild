@@ -56,7 +56,7 @@ class DcdcStateDisplay(wx.Control):
         self.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave)
         self.Bind(wx.EVT_ENTER_WINDOW, self.OnMouseEnter)
 
-        self.dcdc_enabled = False
+        self.widget_enable = False
         self.current_value = 0.1  # Must be normalized (0, 1)
         self.current_real_value = 0
         self.current_str_format = '>4.0f'
@@ -105,31 +105,6 @@ class DcdcStateDisplay(wx.Control):
         self._enable_color = wx.Colour(50, 50, 255, 255)
         self._no_color = wx.Colour(0, 0, 0, 0)
 
-    def LightColour(self, colour, percent):
-        """
-        Return light contrast of `colour`. The colour returned is from the scale of
-        `colour` ==> white.
-
-        :param `colour`: the input colour to be brightened;
-        :param `percent`: determines how light the colour will be. `percent` = 100
-         returns white, `percent` = 0 returns `colour`.
-        """
-
-        end_colour = wx.WHITE
-        rd = end_colour.Red() - colour.Red()
-        gd = end_colour.Green() - colour.Green()
-        bd = end_colour.Blue() - colour.Blue()
-        high = 100
-
-        # We take the percent way of the colour from colour -. white
-        i = percent
-        r = colour.Red() + ((i*rd*100)/high)/100
-        g = colour.Green() + ((i*gd*100)/high)/100
-        b = colour.Blue() + ((i*bd*100)/high)/100
-        a = colour.Alpha()
-
-        return wx.Colour(int(r), int(g), int(b), int(a))
-
     def OnSize(self, event):
         """
         Handles the ``wx.EVT_SIZE`` event for :class:`DcdcStateDisplay`.
@@ -164,7 +139,7 @@ class DcdcStateDisplay(wx.Control):
         pens = []
 
         high_color = self._disable_color_very_light
-        if self.dcdc_enabled:
+        if self.widget_enable:
             low_color = self._enable_color_light
         else:
             low_color = self._disable_color_light
@@ -192,7 +167,7 @@ class DcdcStateDisplay(wx.Control):
         path2.AddRectangle(x=x_1 + bar_width_part1, y=y_1, w=bar_width_part2, h=bar_height)
 
         # Add text under current bar
-        if self.dcdc_enabled:
+        if self.widget_enable:
             txt_str = f"{self.current_real_value:{self.current_str_format}} {self.current_unit}"
             gc.SetFont(font, wx.Colour(0,0,0,255))
             gc.DrawText(str=txt_str,
@@ -228,7 +203,7 @@ class DcdcStateDisplay(wx.Control):
         path2.AddRectangle(x=x_1 + bar_width_part1, y=y_1 + bar_2_y_offset, w=bar_width_part2, h=bar_height)
 
         # Add text over voltage bar
-        if self.dcdc_enabled:
+        if self.widget_enable:
             txt_str = f"{self.voltage_real_value:{self.voltage_str_format}} {self.voltage_unit}"
             txt_scale = len(txt_str) * font_pixel_size
             gc.DrawText(str=txt_str,
@@ -356,8 +331,8 @@ class DcdcStateDisplay(wx.Control):
         wx.Control.Enable(self, enable)
         self.Refresh()
 
-    def SetDcdcEnable(self, enable: bool):
-        self.dcdc_enabled = enable
+    def SetWidgetEnable(self, enable: bool):
+        self.widget_enable = enable
         self.Refresh()
 
     def SetCurrentValueNormalized(self, value: float):
@@ -437,7 +412,6 @@ class DcdcStateDisplay(wx.Control):
             constant = 15
 
         return wx.Size(retWidth+constant, retHeight+constant)
-
 
     def SetDefault(self):
         """ Sets the default button. """

@@ -143,6 +143,14 @@ parent='main_frame',
             mouse_click_function=True,
             mouse_enter_function=True,
         ),
+        WxComponents.widget(
+            name=f'sensorboard_temperature_states',
+            widget_type=WxComponents.widgets.SensorBoardTemperatureStates,
+            font_size=2,
+            end_space=2,
+            mouse_click_function=True,
+            mouse_enter_function=True,
+        ),
     ),
 )
 

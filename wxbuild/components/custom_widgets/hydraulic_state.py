@@ -60,8 +60,8 @@ class HydraulicStateDisplay(wx.Control):
         self.p_animation_value = 0.99
         self.p_value = 0.4
         self.p_setpoint = 0.7
-        self.p_real_value = 1250
-        self.p_setpoint_real_value = 5231
+        self.p_real_value = 0
+        self.p_setpoint_real_value = 0
         #
         self.sov1_open = False
         self.sov2_open = True

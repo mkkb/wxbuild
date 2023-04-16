@@ -32,6 +32,7 @@ class GradientButtonMaster(master.Master):
         self.update_ctrl_widget__dcdc()
         self.update_ctrl_widget__rotation()
         self.update_ctrl_widget__hydraulics()
+        self.update_ctrl_widget__sensorbaord_temps()
 
     def handle_user_event(self, event_type, name, panel):
         print(f" HANDLING USER EVENT:::  type: {event_type} | name: {name} | panel: {panel}")
@@ -108,15 +109,15 @@ class GradientButtonMaster(master.Master):
         widget = self.main_frame.get_widget_by_names(widget_name=name, panel_name=panel)
 
         # print(" -> widget: ", widget, widget.dcdc_enabled, widget.current_value, widget.voltage_value)
-        if not widget.dcdc_enabled:
-            widget.SetDcdcEnable(enable=True)
+        if not widget.widget_enable:
+            widget.SetWidgetEnable(enable=True)
             new_val = 0
             widget.SetCurrentValueNormalized(value=new_val)
 
         else:
             new_val = widget.current_value + 0.01
             if new_val > 1.0:
-                widget.SetDcdcEnable(enable=False)
+                widget.SetWidgetEnable(enable=False)
                 return
             widget.SetCurrentValueNormalized(value=new_val)
 
@@ -187,3 +188,34 @@ class GradientButtonMaster(master.Master):
 
             # real_val = 17.8
             widget.SetPressureValues(animation_value=new_val, real_value=p_real, value=new_val)
+
+    #
+    def update_ctrl_widget__sensorbaord_temps(self):
+        name, panel = 'sensorboard_temperature_states', 'motorctrls'
+        widget = self.main_frame.get_widget_by_names(widget_name=name, panel_name=panel)
+
+        # print(" -> widget: ", widget, widget.dcdc_enabled, widget.current_value, widget.voltage_value)
+        if not widget.widget_enable:
+            widget.SetWidgetEnable(enable=True)
+            new_val = 0
+            widget.SetTemperatures(
+                val_a=new_val, val_b=new_val, val_c=new_val, val_d=new_val, val_e=new_val, val_f=new_val)
+
+        else:
+            vals = []
+            real_vals = []
+            for w_name in 'abcdef':
+                val_increment = np.random.randint(1, 20) / 100
+                w_name = f'temperature_{w_name}'
+                new_val = getattr(widget, w_name) + val_increment
+                if new_val > 1.0:
+                    widget.SetWidgetEnable(enable=False)
+                    return
+
+                new_real_value = new_val*120 - 5
+
+                vals.append(new_val)
+                real_vals.append(new_real_value)
+
+            widget.SetTemperatures(*vals)
+            widget.SetTemperatureRealValues(*real_vals)
