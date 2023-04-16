@@ -8,7 +8,7 @@ def main():
 
     app_config = AppConfiguration(title='WoodPecker', extra_folder='WellGuard', asset_folder="/assets")
     app_config.icon_path = r"C:\KRISTIAN\Python Scripts\GitLab_repos\WellGuard_AS\wg_gui_fpga_wcan\assets\logo_32x32.png"
-    app_config.monitor_resources = False
+    app_config.monitor_resources = True
 
     frm = MainFrame(app_config=app_config)
     frm.master = GradientButtonMaster(main_frame=frm)
@@ -118,6 +118,31 @@ parent='main_frame',
                 WxComponents.widgets.MotorControlAlarmState,
             ])]
         ],
+        WxComponents.spacer(40),
+        WxComponents.widget(
+            name=f'dcdc_display',
+            widget_type=WxComponents.widgets.DcdcStateDisplay,
+            font_size=2,
+            end_space=10,
+            mouse_click_function=True,
+            mouse_enter_function=True,
+        ),
+        WxComponents.widget(
+            name=f'rotational_display',
+            widget_type=WxComponents.widgets.RotationalStateDisplay,
+            font_size=2,
+            end_space=10,
+            mouse_click_function=True,
+            mouse_enter_function=True,
+        ),
+        WxComponents.widget(
+            name=f'hydraulic_display',
+            widget_type=WxComponents.widgets.HydraulicStateDisplay,
+            font_size=2,
+            end_space=2,
+            mouse_click_function=True,
+            mouse_enter_function=True,
+        ),
     ),
 )
 

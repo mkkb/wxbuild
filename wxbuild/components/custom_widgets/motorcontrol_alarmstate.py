@@ -115,10 +115,18 @@ class MotorControlAlarmState(wx.Control):
         self._alignment = align
 
         self.InheritAttributes()
-        size = wx.Size(40, 27)
-        self.SetInitialSize(size)
+
+        self._show_exclamation_sign = False
+        self.size_with_exclamation_sign = wx.Size(40, 27)
+        self.size_no_exclamation_sign = wx.Size(18, 27)
+        self.SetInitialSize()
 
         self.SetBaseColours()
+
+    def ShowExclamationSign(self, show: bool):
+        if show != self._show_exclamation_sign:
+            self.SetInitialSize()
+        self._show_exclamation_sign = show
 
     def SetBitmapLabel(self, bitmap):
         """
@@ -136,6 +144,9 @@ class MotorControlAlarmState(wx.Control):
         self._enable_color = wx.Colour(255, 50, 50, 200)
         self._disable_color = wx.Colour(50, 50, 50, 100)
         self._no_color = wx.Colour(0, 0, 0, 0)
+
+        self._enable_color_sharp = wx.Colour(255, 30, 30, 255)
+        self._disable_color_red = wx.Colour(200, 30, 30, 100)
 
     def LightColour(self, colour, percent):
         """
@@ -217,39 +228,52 @@ class MotorControlAlarmState(wx.Control):
         x4 = x + r0 * 0.25
         x5 = x + r0 * 0.05
 
-        path1 = gc.CreatePath()
-        path1.AddRoundedRectangle(x0+w_*0.05, y0+h_*0.05 - hover_extra, w_*0.9, h_*0.9 + hover_extra*2, r0/2)
+        # ---- Creating Exclamation sign -------------------------------------------------------------------
+        if self._show_exclamation_sign:
+            path1 = gc.CreatePath()
+            path1.AddRoundedRectangle(x0+w_*0.05, y0+h_*0.05 - hover_extra, w_*0.9, h_*0.9 + hover_extra*2, r0/2)
 
-        path2 = gc.CreatePath()
-        path2.AddCircle(x, y1, r1)
-        path2.MoveToPoint(x2, y2)
-        path2.AddLineToPoint(x3, y3)
-        path2.AddLineToPoint(x4, y3)
-        path2.AddLineToPoint(x5, y2)
-        path2.AddLineToPoint(x2, y2)
+            path2 = gc.CreatePath()
+            path2.AddCircle(x, y1, r1)
+            path2.MoveToPoint(x2, y2)
+            path2.AddLineToPoint(x3, y3)
+            path2.AddLineToPoint(x4, y3)
+            path2.AddLineToPoint(x5, y2)
+            path2.AddLineToPoint(x2, y2)
 
-        paths = [
-            path1,
-            path2,
-        ]
+            paths = [
+                path1,
+                path2,
+            ]
 
-        brushes = [
-            wx.Brush(wx.Colour(0, 0, 0, 0)),
-        ]
+            brushes = [
+                wx.Brush(wx.Colour(0, 0, 0, 0)),
+            ]
 
-        pens = [
-            # wx.Pen(disable_color, width=1, style=wx.PENSTYLE_SOLID),
-            wx.Pen(self._no_color, width=1, style=wx.PENSTYLE_SOLID),
-        ]
-        if self.state > 0:
-            pens.append(wx.Pen(enable_color, width=3, style=wx.PENSTYLE_SOLID), )
-            brushes.append(wx.Brush(enable_color),)
+            pens = [
+                # wx.Pen(disable_color, width=1, style=wx.PENSTYLE_SOLID),
+                wx.Pen(self._no_color, width=1, style=wx.PENSTYLE_SOLID),
+            ]
+            if self.state > 0:
+                pens.append(wx.Pen(enable_color, width=3, style=wx.PENSTYLE_SOLID), )
+                brushes.append(wx.Brush(enable_color),)
+            else:
+                pens.append(wx.Pen(disable_color, width=3, style=wx.PENSTYLE_SOLID), )
+                brushes.append(wx.Brush(disable_color), )
         else:
-            pens.append(wx.Pen(disable_color, width=3, style=wx.PENSTYLE_SOLID), )
-            brushes.append(wx.Brush(disable_color), )
+            paths = []
+            brushes = []
+            pens = []
+            x = x0 + 3 - hover_extra - r0*0.8
+            y = y0 + 1 - hover_extra + r0*1
 
+            if self.state > 0:
+                enable_color = self._enable_color_sharp
+                disable_color = self._disable_color_red
+
+        # ---- Creating error bit matrix ----------------------------------------------------------
         x_arr = [x + r0*0.8 + (i%3)*r0*0.45 for i in range(9)]
-        y_arr = [y + r0*0.5 - r0*0.5*(i//3) for i in range(9)]
+        y_arr = [y + r0*0.5 - r0*0.55*(i//3) for i in range(9)]
         r_arr = (1.5,)*9
         flags_arr = [
             self.possible_states(2 ** i) for i in range(len(self.GetPossibleStateNames()))
@@ -359,10 +383,16 @@ class MotorControlAlarmState(wx.Control):
         :param `size`: an instance of :class:`wx.Size`.
         """
 
-        if size is None:
-            size = wx.DefaultSize
+        # if size is None:
+        #     size = wx.DefaultSize
+
+        if self._show_exclamation_sign:
+            size = self.size_with_exclamation_sign
+        else:
+            size = self.size_no_exclamation_sign
+
         wx.Control.SetInitialSize(self, size)
-        print('SetInitialSize -> ', self.GetSize())
+        # print('SetInitialSize -> ', self.GetSize())
 
     SetBestSize = SetInitialSize
 

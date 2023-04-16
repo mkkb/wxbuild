@@ -348,7 +348,7 @@ class MotorControlDriveState(wx.Control):
         if size is None:
             size = wx.DefaultSize
         wx.Control.SetInitialSize(self, size)
-        print('SetInitialSize -> ', self.GetSize())
+        # print('SetInitialSize -> ', self.GetSize())
 
     SetBestSize = SetInitialSize
 

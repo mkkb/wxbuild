@@ -7,6 +7,9 @@ import wxbuild.components.custom_widgets.gradientbutton as wxgb
 import wxbuild.components.custom_widgets.motorcontrol_rpmcurrent as wxmcrc
 import wxbuild.components.custom_widgets.motorcontrol_drivestate as wxmds
 import wxbuild.components.custom_widgets.motorcontrol_alarmstate as wxmas
+import wxbuild.components.custom_widgets.dcdc_state as wxdcdc
+import wxbuild.components.custom_widgets.rotational_state as wxrot
+import wxbuild.components.custom_widgets.hydraulic_state as wxhyd
 import wxbuild.components.styles_colors as wxcolor
 import wxbuild.components.styles_text as wxtext
 
@@ -136,6 +139,18 @@ class WxWidget:
                 self.wx_object = wxmds.MotorControlDriveState(
                     self.parent, -1, size=(-1, -1)
                 )
+            elif self.widget.widget_type == 'DcdcStateDisplay':
+                self.wx_object = wxdcdc.DcdcStateDisplay(
+                    self.parent, -1, size=(-1, -1)
+                )
+            elif self.widget.widget_type == 'RotationalStateDisplay':
+                self.wx_object = wxrot.RotationalStateDisplay(
+                    self.parent, -1, size=(-1, -1)
+                )
+            elif self.widget.widget_type == 'HydraulicStateDisplay':
+                self.wx_object = wxhyd.HydraulicStateDisplay(
+                    self.parent, -1, size=(-1, -1)
+                )
             else:
                 self.wx_object = wx.StaticText(
                     self.parent, -1, label=f'"error - couldnt create widget - {self.widget.label}"'
@@ -147,7 +162,10 @@ class WxWidget:
             if isinstance(self.wx_object, wx.Button) \
                     or isinstance(self.wx_object, wxgb.GradientButton) \
                     or isinstance(self.wx_object, wxmas.MotorControlAlarmState) \
-                    or isinstance(self.wx_object, wxmds.MotorControlDriveState)\
+                    or isinstance(self.wx_object, wxmds.MotorControlDriveState) \
+                    or isinstance(self.wx_object, wxdcdc.DcdcStateDisplay) \
+                    or isinstance(self.wx_object, wxrot.RotationalStateDisplay) \
+                    or isinstance(self.wx_object, wxhyd.HydraulicStateDisplay) \
                     or isinstance(self.wx_object, wxmcrc.MotorControlRpmCurrent):
                 self.add_attributes_to_event_object(self.wx_object)
                 self.wx_object.Bind(
@@ -329,6 +347,9 @@ class Widgets:
     MotorCtrlRpmCurrent: str = 'MotorControlRpmCurrent'
     MotorControlAlarmState: str = 'MotorControlAlarmState'
     MotorControlDriveState: str = 'MotorControlDriveState'
+    DcdcStateDisplay: str = 'DcdcStateDisplay'
+    RotationalStateDisplay: str = 'RotationalStateDisplay'
+    HydraulicStateDisplay: str = 'HydraulicStateDisplay'
     GradientButton: str = 'GradientButton'
     Button: str = 'Button'
     input_float_with_enable: str = 'input_float_with_enable'

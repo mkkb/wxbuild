@@ -57,22 +57,22 @@ class MotorControlRpmCurrent(wx.Control):
         self.Bind(wx.EVT_ENTER_WINDOW, self.OnMouseEnter)
 
         self.motor_enabled = False
-        self.rpm_value = 0.5
-        self.rpm_setpoint_a = 0.3
-        self.rpm_setpoint_b = 0.8
+        self.rpm_value = 0.1
+        self.rpm_setpoint_a = 0.1
+        self.rpm_setpoint_b = 0.6
         self.torque_value = 0.2
-        self.torque_setpoint_a = 0.3
-        self.torque_setpoint_b = 0.6
-        self.torque_setpoint_c = 0.8
-        self.rpm_startup_color = wx.Colour('#006607')
-        self.rpm_normal_color = wx.Colour('#57ff26')
+        self.torque_setpoint_a = 0.1
+        self.torque_setpoint_b = 0.45
+        self.torque_setpoint_c = 0.95
+        self.rpm_startup_color = wx.Colour('#97d2a1')
+        self.rpm_normal_color = wx.Colour('#97d2a1')
         self.rpm_alarm_color = wx.Colour('#ff544a')
         self.rpm_setpoint_color = wx.Colour('#006907')
         self.torque_alarm_selected = False  # False => low alarm | True => High alarm
-        self.torque_startup_color = wx.Colour('#ffb830')
-        self.torque_normal_color = wx.Colour('#57ff26')
-        self.torque_alarm_color = wx.Colour('#ff544a')
-        self.torque_setpoint_color = wx.Colour('#006907')
+        self.torque_startup_color = wx.Colour('#7ebfd9')
+        self.torque_normal_color = wx.Colour('#7ebfd9')
+        self.torque_alarm_color = wx.Colour('#0001a7')
+        self.torque_setpoint_color = wx.Colour('#0091a3')
 
         self._mouseAction = None
         self.SetBitmapLabel(bitmap)
@@ -81,7 +81,7 @@ class MotorControlRpmCurrent(wx.Control):
         self._alignment = align
 
         self.InheritAttributes()
-        size = wx.Size(85, 27)
+        size = wx.Size(55, 27)
         self.SetInitialSize(size)
 
         self.SetBaseColours()
@@ -97,6 +97,7 @@ class MotorControlRpmCurrent(wx.Control):
         self.Refresh()
 
     def SetBaseColours(self):
+        self._disable_color_very_light = wx.Colour(180, 180, 180, 255)
         self._disable_color_light = wx.Colour(90, 90, 90, 255)
         self._enable_color_light = wx.Colour(255, 90, 90, 255)
         self._enable_color = wx.Colour(255, 50, 50, 255)
@@ -148,7 +149,7 @@ class MotorControlRpmCurrent(wx.Control):
         dc = wx.BufferedPaintDC(self)
         gc = wx.GraphicsContext.Create(dc)
         dc.SetBackground(wx.Brush(self.GetParent().GetBackgroundColour()))
-        # dc.SetBackground(wx.Brush(wx.Colour(230, 230, 255, 255)))
+        # dc.SetBackground(wx.Brush(wx.Colour(230, 230, 255, 155)))
         dc.Clear()
 
         clientRect = self.GetClientRect()
@@ -182,13 +183,13 @@ class MotorControlRpmCurrent(wx.Control):
 
         if self.torque_alarm_selected:
             torque_setpoint_color_b = torque_setpoint_color
-            torque_setpoint_color_c = self._disable_color_light
+            torque_setpoint_color_c = self._disable_color_very_light
         else:
-            torque_setpoint_color_b = self._disable_color_light
+            torque_setpoint_color_b = self._disable_color_very_light
             torque_setpoint_color_c = torque_setpoint_color
 
         if self._mouseAction == HOVER:
-            hover_extra = (clientRect[3] * 0.03) / 2
+            hover_extra = (h_ * 0.03) / 2
             # enable_color = self._enable_color_light
             # disable_color = self._disable_color_light
         else:
@@ -196,10 +197,10 @@ class MotorControlRpmCurrent(wx.Control):
             # enable_color = self._enable_color
             # disable_color = self._disable_color
 
-        r = h_ * 0.18
+        r = h_ * 0.18 + hover_extra
 
-        x_1 = x0 + r*0.6 + 3 - hover_extra
-        y_1 = y0 + r + 1 - hover_extra
+        x_1 = x0 + r*0.6 + 3 - hover_extra / 2
+        y_1 = y0 + r + 1 - hover_extra / 2
         x_2 = x_1 + r*0.3
         y_2 = y_1 - r*0.5
 
@@ -210,6 +211,7 @@ class MotorControlRpmCurrent(wx.Control):
         rpm_setpoint_ = meter_width * (1 - self.rpm_setpoint_a) * self.rpm_setpoint_b
         x_rpm_setpoint = rpm_setpoint_ + x_2
 
+        # Create startup circle
         path1 = gc.CreatePath()
         path1.AddCircle(x=x_1, y=y_1, r=r)
 
@@ -257,8 +259,6 @@ class MotorControlRpmCurrent(wx.Control):
         paths.append(path4)
         brushes.append(wx.Brush(self._no_color))
         pens.append(wx.Pen(rpm_setpoint_color, width=1, style=wx.PENSTYLE_SOLID), )
-
-        # path1.AddRoundedRectangle(x=xB_1, y=yB_1, w=r * 1.5, h=r, radius=r)
 
         # ----- Creating Torque bar ---------------------------------------------------------------
         torque_setpoint_ = meter_width * (1 - self.torque_setpoint_a) * self.torque_setpoint_b
@@ -376,7 +376,7 @@ class MotorControlRpmCurrent(wx.Control):
         if size is None:
             size = wx.DefaultSize
         wx.Control.SetInitialSize(self, size)
-        print('SetInitialSize -> ', self.GetSize())
+        # print('SetInitialSize -> ', self.GetSize())
 
     SetBestSize = SetInitialSize
 
@@ -421,24 +421,30 @@ class MotorControlRpmCurrent(wx.Control):
 
     def SetMotorEnable(self, enable: bool):
         self.motor_enabled = enable
+        self.Refresh()
 
     def SetRpmValue(self, rpm_value: float):
         self.rpm_value = min(1.0, max(0.0, rpm_value))
+        self.Refresh()
 
     def SetRpmLimitValues(self, a_lim: float, b_lim: float):
         self.rpm_setpoint_a = min(1.0, max(0.0, a_lim))
         self.rpm_setpoint_b = min(1.0, max(0.0, b_lim))
+        self.Refresh()
 
     def SetTorqueValue(self, torque_value: float):
         self.torque_value = min(1.0, max(0.0, torque_value))
+        self.Refresh()
 
     def SetTorqueLimitValues(self, a_lim: float, b_lim: float, c_lim: float):
         self.torque_setpoint_a = min(1.0, max(0.0, a_lim))
         self.torque_setpoint_b = min(1.0, max(0.0, b_lim))
         self.torque_setpoint_c = min(1.0, max(0.0, c_lim))
+        self.Refresh()
 
     def SetTorqueAlarmSelected(self, select_low: bool):
         self.torque_alarm_selected = select_low
+        self.Refresh()
 
     def SetForegroundColour(self, colour):
         """
@@ -457,12 +463,14 @@ class MotorControlRpmCurrent(wx.Control):
         self.rpm_normal_color = wx.Colour(normal)
         self.rpm_alarm_color = wx.Colour(alarm)
         self.rpm_setpoint_color = wx.Colour(setpoint)
+        self.Refresh()
 
     def SetTorqueColors(self, startup: str, normal: str, alarm: str, setpoint: str):
         self.torque_startup_color = wx.Colour(startup)
         self.torque_normal_color = wx.Colour(normal)
         self.torque_alarm_color = wx.Colour(alarm)
         self.torque_setpoint_color = wx.Colour(setpoint)
+        self.Refresh()
 
     def DoGetBestSize(self):
         """
