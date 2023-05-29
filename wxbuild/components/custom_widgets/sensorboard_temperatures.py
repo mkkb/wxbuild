@@ -171,12 +171,14 @@ class SensorBoardTemperatureStates(wx.Control):
                 real_val = getattr(self, f'temperature_{t_name}_real_value')
                 #txt_str = f"{self.current_real_value:{self.current_str_format}} {self.current_unit}"
                 if i > 2:
-                    txt_str = f'|  {self.temp_descriptions[i]}' # {val:.1f}°C'
+                    txt_str = f'{self.temp_descriptions[i]}' # {val:.1f}°C'
                 else:
                     txt_str = f'{self.temp_descriptions[i]}'  # {val:.1f}°C'
 
+                # Draw parameter label
+                gc.DrawText(str=txt_str, x=w_*0.53*(i//3), y=y)
 
-                gc.DrawText(str=txt_str, x=w_*0.5*(i//3), y=y)
+                # Draw temp values
                 txt_str = f'{real_val:.1f}°C'
                 gc.DrawText(str=txt_str, x=w_ * 0.5 * (i // 3) + 0.33*w_, y=y)
 

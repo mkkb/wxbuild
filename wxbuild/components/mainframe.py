@@ -45,17 +45,17 @@ class AppConfiguration:
     logo_path: str = "",
 
     @classmethod
-    def reset_paths(cls):
-        if len(cls.extra_folder) > 0:
-            cls.state_folder = rf'{tempfile.gettempdir()}' \
-                                rf'{os.path.sep}{cls.extra_folder}' \
-                                rf'{os.path.sep}{cls.title}' \
+    def reset_paths(self):
+        if len(self.extra_folder) > 0:
+            self.state_folder = rf'{tempfile.gettempdir()}' \
+                                rf'{os.path.sep}{self.extra_folder}' \
+                                rf'{os.path.sep}{self.title}' \
                                 rf'{os.path.sep}'
         else:
-            cls.state_folder = rf'{tempfile.gettempdir()}' \
-                                rf'{os.path.sep}{cls.title}' \
+            self.state_folder = rf'{tempfile.gettempdir()}' \
+                                rf'{os.path.sep}{self.title}' \
                                 rf'{os.path.sep}'
-        cls.state_path = rf'{cls.state_folder}{os.path.sep}state.json'
+        self.state_path = rf'{self.state_folder}{os.path.sep}state.json'
 
 
 @dataclass

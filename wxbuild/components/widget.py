@@ -11,6 +11,7 @@ import wxbuild.components.custom_widgets.dcdc_state as wxdcdc
 import wxbuild.components.custom_widgets.rotational_state as wxrot
 import wxbuild.components.custom_widgets.hydraulic_state as wxhyd
 import wxbuild.components.custom_widgets.sensorboard_temperatures as wxsbt
+import wxbuild.components.custom_widgets.custom_state_display as wxcsd
 import wxbuild.components.styles_colors as wxcolor
 import wxbuild.components.styles_text as wxtext
 
@@ -156,6 +157,10 @@ class WxWidget:
                 self.wx_object = wxsbt.SensorBoardTemperatureStates(
                     self.parent, -1, size=(-1, -1)
                 )
+            elif self.widget.widget_type == 'CustomControlStateDisplay':
+                self.wx_object = wxcsd.CustomControlStateDisplay(
+                    self.parent, -1, size=(-1, -1)
+                )
             else:
                 self.wx_object = wx.StaticText(
                     self.parent, -1, label=f'"error - couldnt create widget - {self.widget.label}"'
@@ -172,6 +177,7 @@ class WxWidget:
                     or isinstance(self.wx_object, wxrot.RotationalStateDisplay) \
                     or isinstance(self.wx_object, wxhyd.HydraulicStateDisplay) \
                     or isinstance(self.wx_object, wxsbt.SensorBoardTemperatureStates) \
+                    or isinstance(self.wx_object, wxcsd.CustomControlStateDisplay) \
                     or isinstance(self.wx_object, wxmcrc.MotorControlRpmCurrent):
                 self.add_attributes_to_event_object(self.wx_object)
                 self.wx_object.Bind(
@@ -233,7 +239,10 @@ class WxWidget:
         if isinstance(self.input_element, wx.TextCtrl):
             self.input_element.SetValue(str(value))
         elif isinstance(self.input_element, wx.Choice):
-            self.input_element.SetSelection(self.widget.choices.index(value))
+            if value in self.widget.choices:
+                self.input_element.SetSelection(self.widget.choices.index(value))
+            else:
+                return
         self.widget.value = value
 
     def get_value(self):
@@ -350,6 +359,7 @@ class Widget:
 @dataclass(init=False, repr=False, eq=False, frozen=True)
 class Widgets:
     """All supported widgets"""
+    CustomControlStateDisplay: str = 'CustomControlStateDisplay'
     SensorBoardTemperatureStates: str = 'SensorBoardTemperatureStates'
     MotorCtrlRpmCurrent: str = 'MotorControlRpmCurrent'
     MotorControlAlarmState: str = 'MotorControlAlarmState'

@@ -6,7 +6,11 @@ from app_master__gradient_buttons import GradientButtonMaster
 def main():
     app = wx.App()
 
-    app_config = AppConfiguration(title='WoodPecker', extra_folder='WellGuard', asset_folder="/assets")
+    app_config = AppConfiguration(
+        title='WoodPecker', extra_folder='WellGuard', asset_folder="/assets",
+        # state_folder=
+    )
+    # app_config.reset_paths()
     app_config.icon_path = r"C:\KRISTIAN\Python Scripts\GitLab_repos\WellGuard_AS\wg_gui_fpga_wcan\assets\logo_32x32.png"
     app_config.monitor_resources = True
 
@@ -147,7 +151,31 @@ parent='main_frame',
             name=f'sensorboard_temperature_states',
             widget_type=WxComponents.widgets.SensorBoardTemperatureStates,
             font_size=2,
-            end_space=2,
+            end_space=5,
+            mouse_click_function=True,
+            mouse_enter_function=True,
+        ),
+        WxComponents.widget(
+            name=f'custom_display_1',
+            widget_type=WxComponents.widgets.CustomControlStateDisplay,
+            font_size=2,
+            end_space=5,
+            mouse_click_function=True,
+            mouse_enter_function=True,
+        ),
+        WxComponents.widget(
+            name=f'custom_display_2',
+            widget_type=WxComponents.widgets.CustomControlStateDisplay,
+            font_size=2,
+            end_space=5,
+            mouse_click_function=True,
+            mouse_enter_function=True,
+        ),
+        WxComponents.widget(
+            name=f'custom_display_3',
+            widget_type=WxComponents.widgets.CustomControlStateDisplay,
+            font_size=2,
+            end_space=5,
             mouse_click_function=True,
             mouse_enter_function=True,
         ),
