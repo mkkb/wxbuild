@@ -120,6 +120,8 @@ class CustomControlStateDisplay(wx.Control):
         self.graph_sizes_w = []
         self.graph_sizes_h = []
         self._graph_data_size = 256
+        self._graph_zoom_levels = 4
+        self._graph_current_zoom = 1
         self.graph_data = [np.zeros(self._graph_data_size, dtype=np.float32), ]
 
         self._mouseAction = None
@@ -311,14 +313,15 @@ class CustomControlStateDisplay(wx.Control):
                 paths.append(path_sp)
 
         # Draw all graphs
+        n = int(self._graph_data_size / (2 ** self._graph_current_zoom))
         for i, x in enumerate(self.graph_positions_x):
             x = self.graph_positions_x[i] * w_
             y = self.graph_positions_y[i] * h_
             w = self.graph_sizes_w[i] * w_
             h = self.graph_sizes_h[i] * h_
 
-            x_data = self.graph_data[i]
-            dx = x_data.size / w
+            x_data = self.graph_data[i][-n:]
+            dx = w / x_data.size
 
             path_background = gc.CreatePath()
             path_background.AddRectangle(x=x, y=y, w=w, h=h)
@@ -399,6 +402,8 @@ class CustomControlStateDisplay(wx.Control):
 
         pos = event.GetPosition()
         rect = self.GetClientRect()
+
+        self._graph_current_zoom = (self._graph_current_zoom + 1) % self._graph_zoom_levels
 
         if self.HasCapture():
             self.ReleaseMouse()

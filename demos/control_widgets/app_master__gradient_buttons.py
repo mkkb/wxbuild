@@ -399,10 +399,15 @@ class GradientButtonMaster(master.Master):
                 self.widget_value_dict[x_val_label] = new_val_x
 
                 y_val_label = 'ccl_vpp'
-                amp = np.random.randint(1.2, 2.49)
+                amp = 2  # np.random.randint(1.2, 2.49)
+                offset = 2.49
+                if int(time.time()) % 3 == 0:
+                    amp = 0
+                    offset = max_val_y - 0.05
+
                 t = time.time() + np.arange(128) / 128
-                f = 5
-                new_val = amp*np.sin(2*np.pi*t * f) + 2.49
+                f = 0.1
+                new_val = amp*np.sin(2*np.pi*t * f) + offset
                 new_val[new_val > max_val_y] = max_val_y
                 new_val[new_val < min_val_y] = min_val_y
 
@@ -411,5 +416,5 @@ class GradientButtonMaster(master.Master):
                 new_val /= val_range_y
                 new_val = new_val.astype(np.float32)
 
-                widget.edit_graph_data(index=0, data=new_val)
+                widget.edit_graph_data(index=0, data=new_val[-1:])
                 widget.edit_text_label(index=0, text=label)
